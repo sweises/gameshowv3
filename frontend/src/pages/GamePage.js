@@ -43,6 +43,16 @@ function GamePage() {
   const [waitingForCategoryStart, setWaitingForCategoryStart] = useState(initialWaitingForCategoryStart || false);
   const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
   const [correctAnswerPlayer, setCorrectAnswerPlayer] = useState(null);
+  const [hostFeedback, setHostFeedback] = useState(null);
+  const [isJudging, setIsJudging] = useState(false);
+
+  // NEU: Text-Input States
+  const [textAnswer, setTextAnswer] = useState('');
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [textAnswers, setTextAnswers] = useState([]);
+  const [selectedCorrectIds, setSelectedCorrectIds] = useState([]);
+  const [answersSubmitted, setAnswersSubmitted] = useState(0);
+  const [showAnswers, setShowAnswers] = useState(false); // NEU: Antworten verstecken
 
   useEffect(() => {
     if (!roomCode) {
@@ -50,7 +60,6 @@ function GamePage() {
       return;
     }
 
-    // Lade Spieler-Scores beim Start
     const loadPlayers = async () => {
       try {
         const response = await fetch(`http://localhost:3001/api/games/${gameId}/players`);
@@ -70,66 +79,83 @@ function GamePage() {
     // Socket Events
     socket.on('category-intro', (data) => {
       console.log('🎯 category-intro empfangen:', data);
+      console.log('   → Kategorie-Typ:', data.category?.type);
+      console.log('   → Ist Host?', isHost);
       setCurrentCategory(data.category);
       setShowCategoryIntro(true);
-      setWaitingForCategoryStart(true);
+      // WICHTIG: Host wartet immer auf Start-Button, egal welcher Typ
+      setWaitingForCategoryStart(true); // Immer true setzen!
       setQuestion(null);
       setBuzzerLocked(true);
+      resetQuestionState();
     });
 
     socket.on('category-started', (data) => {
       console.log('🎯 category-started empfangen:', data);
+      console.log('   → Kategorie-Typ:', data.category?.type);
+      console.log('   → Frage:', data.question);
       setQuestion(data.question);
       setCurrentCategory(data.category);
       setShowCategoryIntro(false);
       setWaitingForCategoryStart(false);
-      setBuzzerLocked(false);
-    });
-
-    socket.on('game-started', (data) => {
-      console.log('🎯 game-started empfangen:', data);
-      setQuestion(data.question);
-      setCurrentCategory(data.category);
-      setBuzzerLocked(false);
-      setShowCategoryIntro(false);
-      setWaitingForCategoryStart(false);
+      
+      if (data.category.type === 'buzzer') {
+        setBuzzerLocked(false);
+        console.log('   → Buzzer freigegeben');
+      } else {
+        console.log('   → Text-Eingabe Modus aktiv');
+      }
+      
+      resetQuestionState();
     });
 
     socket.on('next-question', (data) => {
       console.log('🎯 next-question empfangen:', data);
       setQuestion(data.question);
       setCurrentCategory(data.category);
-      setBuzzerLocked(false);
-      setBuzzerPlayer(null);
-      setBuzzerPlayerId(null);
-      setShowBuzzAlert(false);
-      setIsCountingDown(false);
-      setCountdown(0);
-      setShowCorrectAnswer(false);
-      setCorrectAnswerPlayer(null);
+      
+      if (data.category.type === 'buzzer') {
+        setBuzzerLocked(false);
+      }
+      
+      resetQuestionState();
     });
 
     socket.on('player-buzzed', (data) => {
-      console.log('🎯 player-buzzed empfangen:', data);
       setBuzzerLocked(true);
       setBuzzerPlayer(data.playerName);
       setBuzzerPlayerId(data.playerId);
       setShowBuzzAlert(true);
+      setTimeout(() => setShowBuzzAlert(false), 2000);
+    });
 
-      setTimeout(() => {
-        setShowBuzzAlert(false);
-      }, 2000);
+    socket.on('text-answer-submitted', (data) => {
+      console.log('📝 Text-Antwort eingegangen:', data);
+      setAnswersSubmitted(prev => prev + 1);
+      
+      // NEU: Wenn Antworten sichtbar sind, automatisch neu laden
+      if (isHost && question && showAnswers) {
+        setTimeout(() => {
+          loadTextAnswers();
+        }, 500);
+      }
+    });
+
+    socket.on('text-answers-judged', (data) => {
+      console.log('✅ Text-Antworten bewertet:', data);
+      if (data.awardedPoints && data.awardedPoints.length > 0) {
+        const names = data.awardedPoints.map(p => p.name).join(', ');
+        setCorrectAnswerPlayer(names);
+        setShowCorrectAnswer(true);
+        setTimeout(() => setShowCorrectAnswer(false), 3000);
+      }
     });
 
     socket.on('answer-judged', (data) => {
-      console.log('🎯 answer-judged empfangen:', data);
       if (data.correct) {
         setCorrectAnswerPlayer(data.playerName);
         setShowCorrectAnswer(true);
-        
-        setTimeout(() => {
-          setShowCorrectAnswer(false);
-        }, 2000);
+        setTimeout(() => setShowCorrectAnswer(false), 2000);
       }
       
       if (!data.correct && isHost) {
@@ -138,7 +164,6 @@ function GamePage() {
     });
 
     socket.on('buzzer-unlocked', () => {
-      console.log('🎯 buzzer-unlocked empfangen');
       setBuzzerLocked(false);
       setBuzzerPlayer(null);
       setBuzzerPlayerId(null);
@@ -147,12 +172,10 @@ function GamePage() {
     });
 
     socket.on('scores-update', (data) => {
-      console.log('🎯 scores-update empfangen:', data);
       setPlayers(data.players);
     });
 
     socket.on('game-finished', (data) => {
-      console.log('🎯 game-finished empfangen:', data);
       setPlayers(data.players);
       setGameFinished(true);
       if (data.players.length > 0) {
@@ -163,15 +186,44 @@ function GamePage() {
     return () => {
       socket.off('category-intro');
       socket.off('category-started');
-      socket.off('game-started');
       socket.off('next-question');
       socket.off('player-buzzed');
+      socket.off('text-answer-submitted');
+      socket.off('text-answers-judged');
       socket.off('answer-judged');
       socket.off('buzzer-unlocked');
       socket.off('scores-update');
       socket.off('game-finished');
     };
-  }, [roomCode, navigate, isHost, gameId]);
+  }, [roomCode, navigate, isHost, gameId, question]);
+
+  const resetQuestionState = () => {
+    setBuzzerPlayer(null);
+    setBuzzerPlayerId(null);
+    setShowBuzzAlert(false);
+    setIsCountingDown(false);
+    setCountdown(0);
+    setShowCorrectAnswer(false);
+    setCorrectAnswerPlayer(null);
+    setHostFeedback(null);
+    setTextAnswer('');
+    setHasSubmitted(false);
+    setTextAnswers([]);
+    setSelectedCorrectIds([]);
+    setAnswersSubmitted(0);
+    setShowAnswers(false); // NEU: Antworten wieder verstecken
+  };
+
+  const loadTextAnswers = () => {
+    if (!question) return;
+    
+    socket.emit('get-text-answers', { questionId: question.id }, (response) => {
+      if (response.success) {
+        setTextAnswers(response.answers);
+        setShowAnswers(true); // NEU: Antworten sichtbar machen
+      }
+    });
+  };
 
   const startUnlockCountdown = () => {
     setIsCountingDown(true);
@@ -203,23 +255,87 @@ function GamePage() {
     }
   };
 
+  const handleSubmitTextAnswer = () => {
+    if (!textAnswer.trim() || !question) return;
+
+    socket.emit('submit-text-answer', {
+      questionId: question.id,
+      answerText: textAnswer
+    }, (response) => {
+      if (response.success) {
+        setHasSubmitted(true);
+        setTextAnswer('');
+      }
+    });
+  };
+
   const handleJudgeAnswer = (correct) => {
-    if (!buzzerPlayerId) return;
+    if (!buzzerPlayerId || isJudging) return;
+
+    setIsJudging(true);
 
     socket.emit('judge-answer', { 
       playerId: buzzerPlayerId, 
       correct 
     }, (response) => {
+      setIsJudging(false);
+      
       if (response.success) {
-        console.log('Antwort bewertet');
+        setHostFeedback({
+          correct: response.correct,
+          playerName: response.playerName,
+          newScore: response.newScore
+        });
+
+        setTimeout(() => setHostFeedback(null), 3000);
+      }
+    });
+  };
+
+  const handleJudgeTextAnswers = () => {
+    if (selectedCorrectIds.length === 0 || !question) {
+      alert('Bitte wähle mindestens einen Spieler aus!');
+      return;
+    }
+
+    socket.emit('judge-text-answers', {
+      questionId: question.id,
+      correctPlayerIds: selectedCorrectIds
+    }, (response) => {
+      if (response.success) {
+        setHostFeedback({
+          correct: true,
+          playerNames: response.awardedPoints.map(p => p.name),
+          multiple: true
+        });
+
+        setTimeout(() => setHostFeedback(null), 3000);
+      }
+    });
+  };
+
+  const toggleSelectAnswer = (playerId) => {
+    setSelectedCorrectIds(prev => {
+      if (prev.includes(playerId)) {
+        return prev.filter(id => id !== playerId);
+      } else {
+        return [...prev, playerId];
       }
     });
   };
 
   const handleStartCategory = () => {
+    console.log('🚀 handleStartCategory aufgerufen');
+    console.log('   → Socket verbunden?', socket.connected);
+    console.log('   → gameId:', gameId);
+    
     socket.emit('start-category', (response) => {
+      console.log('📥 start-category Response:', response);
       if (response.success) {
-        console.log('Kategorie gestartet');
+        console.log('✅ Kategorie erfolgreich gestartet');
+      } else {
+        console.error('❌ Fehler beim Starten:', response.error);
+        alert('Fehler: ' + response.error);
       }
     });
   };
@@ -238,10 +354,17 @@ function GamePage() {
 
   // Kategorie Intro Screen
   if (showCategoryIntro && currentCategory) {
+    console.log('🖼️ Zeige Category-Intro:', {
+      categoryName: currentCategory.name,
+      categoryType: currentCategory.type,
+      isHost: isHost,
+      waitingForCategoryStart: waitingForCategoryStart
+    });
+
     return (
       <div className="page" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
         <div style={{ textAlign: 'center', color: 'white', maxWidth: '800px' }}>
-          <div style={{ fontSize: '8rem', marginBottom: '30px', animation: 'pulse 1s infinite' }}>
+          <div style={{ fontSize: '8rem', marginBottom: '30px', animation: 'pulse 2s infinite' }}>
             {ICON_MAP[currentCategory.icon] || '❓'}
           </div>
           <h1 style={{ 
@@ -256,36 +379,58 @@ function GamePage() {
             fontSize: '1.5rem', 
             color: 'rgba(255,255,255,0.9)',
             maxWidth: '600px',
-            margin: '0 auto 40px'
+            margin: '0 auto 20px'
           }}>
             {currentCategory.description}
           </p>
+          <div style={{
+            background: 'rgba(255,255,255,0.2)',
+            padding: '15px 30px',
+            borderRadius: '10px',
+            fontSize: '1.2rem',
+            marginBottom: '40px'
+          }}>
+            {currentCategory.type === 'text_input' ? '📝 Text-Eingabe Runde' : '🔴 Buzzer Runde'}
+          </div>
 
-          {isHost && waitingForCategoryStart && (
-            <button
-              className="btn btn-success"
-              onClick={handleStartCategory}
-              style={{
-                fontSize: '1.5rem',
-                padding: '20px 50px',
-                background: 'white',
-                color: '#667eea',
-                border: 'none',
-                marginTop: '20px'
-              }}
-            >
-              ▶️ Kategorie Starten
-            </button>
+          {isHost && (
+            <>
+              <p style={{ 
+                fontSize: '1rem', 
+                color: 'rgba(255,255,255,0.8)',
+                marginBottom: '20px'
+              }}>
+                Debug: waitingForCategoryStart = {waitingForCategoryStart ? 'true' : 'false'}
+              </p>
+              <button
+                className="btn btn-success"
+                onClick={handleStartCategory}
+                style={{
+                  fontSize: '1.5rem',
+                  padding: '20px 50px',
+                  background: 'white',
+                  color: '#667eea',
+                  border: 'none'
+                }}
+              >
+                ▶️ Kategorie Starten
+              </button>
+            </>
           )}
 
           {!isHost && (
-            <p style={{ 
-              fontSize: '1.2rem', 
-              color: 'rgba(255,255,255,0.8)',
-              marginTop: '30px'
-            }}>
-              Warte auf Host...
-            </p>
+            <div style={{ marginTop: '30px' }}>
+              <div className="spinner" style={{ 
+                borderTopColor: 'white',
+                margin: '0 auto 20px'
+              }}></div>
+              <p style={{ 
+                fontSize: '1.2rem', 
+                color: 'rgba(255,255,255,0.8)'
+              }}>
+                Warte auf Host...
+              </p>
+            </div>
           )}
         </div>
       </div>
@@ -337,6 +482,8 @@ function GamePage() {
     );
   }
 
+  const isTextInput = currentCategory?.type === 'text_input';
+
   // Main Game Screen
   return (
     <div className="page">
@@ -364,22 +511,50 @@ function GamePage() {
               gap: '10px'
             }}>
               <span style={{ fontSize: '1.5rem' }}>{ICON_MAP[currentCategory.icon] || '❓'}</span>
-              <span style={{ fontWeight: 'bold', color: '#667eea' }}>{currentCategory.name}</span>
+              <span style={{ fontWeight: 'bold', color: '#667eea' }}>
+                {currentCategory.name}
+                {isTextInput && ' 📝'}
+              </span>
             </div>
           )}
         </div>
 
+        {/* Host Feedback Banner */}
+        {isHost && hostFeedback && (
+          <div style={{
+            padding: '20px',
+            borderRadius: '15px',
+            marginBottom: '20px',
+            background: hostFeedback.correct 
+              ? 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)' 
+              : 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)',
+            color: 'white',
+            textAlign: 'center',
+            animation: 'buzzAnimation 0.5s ease'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '1.5rem', color: 'white' }}>
+              {hostFeedback.correct ? '✅ Richtig!' : '❌ Falsch!'}
+            </h3>
+            <p style={{ margin: 0, fontSize: '1.2rem' }}>
+              {hostFeedback.multiple 
+                ? `${hostFeedback.playerNames.join(', ')} bekommen Punkte!`
+                : `${hostFeedback.playerName} ${hostFeedback.correct ? `hat jetzt ${hostFeedback.newScore} Punkt${hostFeedback.newScore !== 1 ? 'e' : ''}` : 'bekommt keinen Punkt'}`
+              }
+            </p>
+          </div>
+        )}
+
         {/* Frage anzeigen */}
         {question && (
-          <div className="question-container" style={{ 
-            minHeight: '150px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <p className="question-text" style={{ fontSize: '2rem' }}>
+          <div className="question-container">
+            <p className="question-text">
               {question.text}
             </p>
+            {isTextInput && !isHost && (
+              <p style={{ fontSize: '1rem', color: '#666', marginTop: '10px' }}>
+                {answersSubmitted > 0 && `${answersSubmitted} von ${players.length} Spielern haben geantwortet`}
+              </p>
+            )}
           </div>
         )}
 
@@ -398,7 +573,7 @@ function GamePage() {
             color: 'white'
           }}>
             <h2>✅ RICHTIG!</h2>
-            <p>{correctAnswerPlayer} bekommt +1 Punkt!</p>
+            <p>{correctAnswerPlayer}</p>
           </div>
         )}
 
@@ -426,15 +601,154 @@ function GamePage() {
           </div>
         )}
 
-        {/* Buzzer Info */}
-        {buzzerPlayer && !isCountingDown && (
+        {/* TEXT INPUT MODE - Spieler Eingabe */}
+        {!isHost && isTextInput && question && !hasSubmitted && (
+          <div style={{ margin: '30px 0' }}>
+            <textarea
+              className="input"
+              placeholder="Deine Antwort eingeben..."
+              value={textAnswer}
+              onChange={(e) => setTextAnswer(e.target.value)}
+              rows={3}
+              style={{ 
+                resize: 'vertical',
+                fontSize: '1.1rem'
+              }}
+            />
+            <button
+              className="btn btn-success"
+              onClick={handleSubmitTextAnswer}
+              disabled={!textAnswer.trim()}
+            >
+              📤 Antwort Abschicken
+            </button>
+          </div>
+        )}
+
+        {!isHost && isTextInput && hasSubmitted && (
+          <div className="alert alert-success" style={{ fontSize: '1.2rem' }}>
+            ✅ Deine Antwort wurde abgeschickt! Warte auf die Auswertung...
+          </div>
+        )}
+
+        {/* TEXT INPUT MODE - Host Bewertung */}
+        {isHost && isTextInput && question && (
+          <div style={{ margin: '30px 0' }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '15px'
+            }}>
+              <h3 style={{ margin: 0, color: '#667eea' }}>
+                Eingegangene Antworten ({answersSubmitted}/{players.length})
+              </h3>
+              
+              {!showAnswers ? (
+                <button
+                  className="btn btn-primary"
+                  onClick={loadTextAnswers}
+                  style={{ 
+                    width: 'auto',
+                    padding: '12px 30px',
+                    fontSize: '1rem'
+                  }}
+                >
+                  👀 Antworten anzeigen
+                </button>
+              ) : (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowAnswers(false)}
+                  style={{ 
+                    width: 'auto',
+                    padding: '12px 30px',
+                    fontSize: '1rem'
+                  }}
+                >
+                  🙈 Antworten verstecken
+                </button>
+              )}
+            </div>
+
+            {!showAnswers ? (
+              <div className="alert alert-info">
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🔒</div>
+                  <p style={{ fontSize: '1.2rem', margin: 0 }}>
+                    Antworten sind versteckt. Klicke "Antworten anzeigen" wenn alle Spieler geantwortet haben.
+                  </p>
+                </div>
+              </div>
+            ) : textAnswers.length === 0 ? (
+              <div className="alert alert-info">
+                Noch keine Antworten vorhanden...
+              </div>
+            ) : (
+              <>
+                <div className="players-list">
+                  {textAnswers.map((answer) => (
+                    <div 
+                      key={answer.id}
+                      className="player-item"
+                      onClick={() => toggleSelectAnswer(answer.player_id)}
+                      style={{
+                        cursor: 'pointer',
+                        background: selectedCorrectIds.includes(answer.player_id) 
+                          ? '#d4edda' 
+                          : 'white',
+                        border: selectedCorrectIds.includes(answer.player_id)
+                          ? '2px solid #28a745'
+                          : '1px solid #e0e0e0',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div>
+                        <div style={{ 
+                          fontWeight: 'bold',
+                          marginBottom: '5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px'
+                        }}>
+                          <span>
+                            {selectedCorrectIds.includes(answer.player_id) ? '✅' : '⬜'}
+                          </span>
+                          <span>{answer.player_name}</span>
+                        </div>
+                        <div style={{ 
+                          fontSize: '1.1rem',
+                          color: '#333',
+                          fontStyle: 'italic'
+                        }}>
+                          "{answer.answer_text}"
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  className="btn btn-success"
+                  onClick={handleJudgeTextAnswers}
+                  disabled={selectedCorrectIds.length === 0}
+                  style={{ marginTop: '20px' }}
+                >
+                  ✅ {selectedCorrectIds.length} Spieler Punkt{selectedCorrectIds.length !== 1 ? 'e' : ''} geben
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* BUZZER MODE - Normale Buzzer UI */}
+        {buzzerPlayer && !isCountingDown && !hostFeedback && !isTextInput && (
           <div className="alert alert-info" style={{ fontSize: '1.2rem' }}>
             <strong>{buzzerPlayer}</strong> hat gebuzzert! {isHost ? 'Bewerte die Antwort:' : 'Warte auf Bewertung...'}
           </div>
         )}
 
-        {/* Buzzer (nur für Spieler) */}
-        {!isHost && (
+        {!isHost && !isTextInput && (
           <div className="buzzer-container">
             <button
               className="buzzer"
@@ -455,7 +769,7 @@ function GamePage() {
         {/* Host Controls */}
         {isHost && (
           <div style={{ marginTop: '20px' }}>
-            {buzzerPlayer && !isCountingDown && (
+            {!isTextInput && buzzerPlayer && !isCountingDown && (
               <div style={{ 
                 display: 'flex', 
                 gap: '15px', 
@@ -465,26 +779,26 @@ function GamePage() {
                 <button
                   className="btn btn-success"
                   onClick={() => handleJudgeAnswer(true)}
-                  disabled={!buzzerPlayerId}
+                  disabled={!buzzerPlayerId || isJudging}
                   style={{ 
                     width: 'auto', 
                     padding: '15px 40px',
                     fontSize: '1.2rem'
                   }}
                 >
-                  ✅ Richtig (+1 Punkt)
+                  {isJudging ? '⏳ Wird bewertet...' : '✅ Richtig (+1 Punkt)'}
                 </button>
                 <button
                   className="btn btn-danger"
                   onClick={() => handleJudgeAnswer(false)}
-                  disabled={!buzzerPlayerId}
+                  disabled={!buzzerPlayerId || isJudging}
                   style={{ 
                     width: 'auto', 
                     padding: '15px 40px',
                     fontSize: '1.2rem'
                   }}
                 >
-                  ❌ Falsch
+                  {isJudging ? '⏳ Wird bewertet...' : '❌ Falsch'}
                 </button>
               </div>
             )}

@@ -14,15 +14,16 @@ function PlayerLobby() {
   const [gameId, setGameId] = useState(null);
 
   useEffect(() => {
+    // Verbinde Socket
     socket.connect();
 
+    // Höre auf Spieler-Updates
     socket.on('players-update', (data) => {
       setPlayers(data.players);
     });
 
-    // Bei category-intro zur GamePage (mit Kategorie-Screen)
+    // Höre auf Kategorie-Intro (NEU)
     socket.on('category-intro', (data) => {
-      console.log('🎯 Spieler empfängt category-intro:', data);
       navigate('/game', { 
         state: { 
           isHost: false, 
@@ -30,29 +31,13 @@ function PlayerLobby() {
           roomCode,
           gameId,
           showCategoryIntro: true,
-          currentCategory: data.category,
-          waitingForCategoryStart: false // Spieler wartet nur
-        } 
-      });
-    });
-
-    // Bei category-started zur GamePage (mit Frage) - falls schon läuft
-    socket.on('category-started', (data) => {
-      console.log('🎯 Spieler empfängt category-started:', data);
-      navigate('/game', { 
-        state: { 
-          isHost: false, 
-          playerId, 
-          roomCode,
-          gameId,
-          currentQuestion: data.question,
           currentCategory: data.category
         } 
       });
     });
 
+    // Höre auf Spiel-Start (Legacy - falls Kategorie übersprungen wird)
     socket.on('game-started', (data) => {
-      console.log('🎯 Spieler empfängt game-started:', data);
       navigate('/game', { 
         state: { 
           isHost: false, 
@@ -68,7 +53,6 @@ function PlayerLobby() {
     return () => {
       socket.off('players-update');
       socket.off('category-intro');
-      socket.off('category-started');
       socket.off('game-started');
     };
   }, [navigate, playerId, roomCode, gameId]);
@@ -103,6 +87,7 @@ function PlayerLobby() {
   };
 
   if (!hasJoined) {
+    // Noch nicht beigetreten
     return (
       <div className="page">
         <div className="card">
@@ -149,6 +134,7 @@ function PlayerLobby() {
     );
   }
 
+  // Beigetreten - warte auf Start
   return (
     <div className="page">
       <div className="card" style={{ maxWidth: '600px' }}>

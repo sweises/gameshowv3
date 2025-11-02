@@ -99,18 +99,21 @@ function setupGameSocket(io, db) {
 
                 const category = categoryResult.rows[0];
 
-                // Sende Kategorie-Intro (bleibt bis Host bestätigt)
-                io.to(socket.roomCode).emit('category-intro', {
-                    category: {
-                        id: category.id,
-                        name: category.name,
-                        icon: category.icon,
-                        description: category.description
-                    }
-                });
-
                 callback({ success: true });
-                console.log(`🎮 Spiel gestartet in Raum ${socket.roomCode}`);
+                
+                setTimeout(() => {
+                    io.to(socket.roomCode).emit('category-intro', {
+                        category: {
+                            id: category.id,
+                            name: category.name,
+                            icon: category.icon,
+                            description: category.description,
+                            type: category.category_type || 'buzzer'
+                        }
+                    });
+                    console.log(`🎮 Spiel gestartet - Kategorie: ${category.name} (${category.category_type})`);
+                }, 100);
+
             } catch (error) {
                 console.error('Fehler beim Starten:', error);
                 callback({ success: false, error: error.message });
@@ -131,7 +134,6 @@ function setupGameSocket(io, db) {
 
                 const game = gameResult.rows[0];
 
-                // Hole aktuelle Kategorie
                 const categoryResult = await db.query(
                     'SELECT c.* FROM categories c JOIN game_categories gc ON c.id = gc.category_id WHERE gc.game_id = $1 ORDER BY gc.play_order OFFSET $2 LIMIT 1',
                     [socket.gameId, game.current_category_index]
@@ -142,20 +144,47 @@ function setupGameSocket(io, db) {
                 }
 
                 const category = categoryResult.rows[0];
+                console.log('🔍 Kategorie-Typ aus DB:', category.category_type);
 
-                // Hole erste Frage dieser Kategorie (basierend auf current_question_index)
+                // Prüfe ob Fragen für diese Kategorie im Spiel existieren
+                const existingQuestionsCheck = await db.query(
+                    'SELECT COUNT(*) as count FROM questions WHERE game_id = $1 AND category_id = $2',
+                    [socket.gameId, category.id]
+                );
+
+                const questionCount = parseInt(existingQuestionsCheck.rows[0].count);
+                console.log(`📊 Fragen in Spiel für Kategorie ${category.name}: ${questionCount}`);
+
+                // Falls keine Fragen existieren, kopiere sie von templates
+                if (questionCount === 0) {
+                    console.log('⚠️  Keine Fragen gefunden - kopiere von Templates...');
+                    
+                    await db.query(
+                        `INSERT INTO questions (game_id, category_id, question_text, question_order)
+                         SELECT $1, category_id, question_text, 
+                                ROW_NUMBER() OVER (ORDER BY id) - 1
+                         FROM question_templates 
+                         WHERE category_id = $2`,
+                        [socket.gameId, category.id]
+                    );
+                    
+                    console.log('✅ Fragen von Templates kopiert');
+                }
+
                 const questionResult = await db.query(
                     'SELECT * FROM questions WHERE game_id = $1 AND category_id = $2 ORDER BY question_order OFFSET $3 LIMIT 1',
                     [socket.gameId, category.id, game.current_question_index]
                 );
 
                 if (questionResult.rows.length === 0) {
-                    return callback({ success: false, error: 'Keine Fragen vorhanden' });
+                    return callback({ success: false, error: 'Keine Fragen vorhanden - Templates prüfen!' });
                 }
 
                 const question = questionResult.rows[0];
 
-                io.to(socket.roomCode).emit('category-started', {
+                callback({ success: true });
+
+                const categoryData = {
                     question: {
                         id: question.id,
                         text: question.question_text,
@@ -164,19 +193,23 @@ function setupGameSocket(io, db) {
                     category: {
                         id: category.id,
                         name: category.name,
-                        icon: category.icon
+                        icon: category.icon,
+                        type: category.category_type || 'buzzer'
                     }
-                });
+                };
 
-                callback({ success: true });
-                console.log(`▶️ Kategorie gestartet in Raum ${socket.roomCode}`);
+                console.log('📤 Sende category-started mit Typ:', categoryData.category.type);
+
+                io.to(socket.roomCode).emit('category-started', categoryData);
+
+                console.log(`▶️ Kategorie ${category.name} (${category.category_type}) gestartet`);
             } catch (error) {
                 console.error('Fehler beim Starten der Kategorie:', error);
                 callback({ success: false, error: error.message });
             }
         });
 
-        // Event: BUZZER! 🔴
+        // Event: BUZZER! 🔴 (nur für buzzer-Kategorien)
         socket.on('buzz', async (callback) => {
             try {
                 const gameResult = await db.query(
@@ -190,7 +223,6 @@ function setupGameSocket(io, db) {
                     return callback({ success: false, error: 'Spiel läuft nicht' });
                 }
 
-                // Hole aktuelle Frage
                 const questionResult = await db.query(
                     'SELECT * FROM questions WHERE game_id = $1 ORDER BY question_order OFFSET $2 LIMIT 1',
                     [socket.gameId, game.current_question_index]
@@ -198,7 +230,6 @@ function setupGameSocket(io, db) {
 
                 const question = questionResult.rows[0];
 
-                // Prüfe ob schon jemand gebuzzert hat
                 const buzzCheck = await db.query(
                     'SELECT * FROM buzzes WHERE game_id = $1 AND question_id = $2',
                     [socket.gameId, question.id]
@@ -208,13 +239,11 @@ function setupGameSocket(io, db) {
                     return callback({ success: false, error: 'Jemand hat bereits gebuzzert' });
                 }
 
-                // Speichere Buzz
                 await db.query(
                     'INSERT INTO buzzes (game_id, question_id, player_id) VALUES ($1, $2, $3)',
                     [socket.gameId, question.id, socket.playerId]
                 );
 
-                // Hole Spieler-Info
                 const playerResult = await db.query(
                     'SELECT * FROM players WHERE id = $1',
                     [socket.playerId]
@@ -222,14 +251,14 @@ function setupGameSocket(io, db) {
 
                 const player = playerResult.rows[0];
 
-                // Informiere ALLE über den Buzz
+                callback({ success: true });
+
                 io.to(socket.roomCode).emit('player-buzzed', {
                     playerId: player.id,
                     playerName: player.name,
                     timestamp: new Date()
                 });
 
-                callback({ success: true });
                 console.log(`🔴 ${player.name} hat gebuzzert!`);
             } catch (error) {
                 console.error('Fehler beim Buzzen:', error);
@@ -237,7 +266,146 @@ function setupGameSocket(io, db) {
             }
         });
 
-        // Event: Antwort bewerten (Host)
+        // NEU: Event: Text-Antwort abgeben (für text_input Kategorien)
+        socket.on('submit-text-answer', async (data, callback) => {
+            try {
+                const { questionId, answerText } = data;
+
+                if (!answerText || answerText.trim().length === 0) {
+                    return callback({ success: false, error: 'Antwort darf nicht leer sein' });
+                }
+
+                // Prüfe ob Spieler schon geantwortet hat
+                const existingAnswer = await db.query(
+                    'SELECT * FROM text_answers WHERE game_id = $1 AND question_id = $2 AND player_id = $3',
+                    [socket.gameId, questionId, socket.playerId]
+                );
+
+                if (existingAnswer.rows.length > 0) {
+                    return callback({ success: false, error: 'Du hast bereits geantwortet' });
+                }
+
+                // Speichere Antwort
+                await db.query(
+                    'INSERT INTO text_answers (game_id, question_id, player_id, answer_text) VALUES ($1, $2, $3, $4)',
+                    [socket.gameId, questionId, socket.playerId, answerText.trim()]
+                );
+
+                const playerResult = await db.query(
+                    'SELECT * FROM players WHERE id = $1',
+                    [socket.playerId]
+                );
+
+                const player = playerResult.rows[0];
+
+                callback({ success: true });
+
+                // Informiere Host über neue Antwort
+                io.to(socket.roomCode).emit('text-answer-submitted', {
+                    playerId: player.id,
+                    playerName: player.name,
+                    questionId
+                });
+
+                console.log(`📝 ${player.name} hat Text-Antwort abgegeben`);
+            } catch (error) {
+                console.error('Fehler beim Speichern der Text-Antwort:', error);
+                callback({ success: false, error: error.message });
+            }
+        });
+
+        // NEU: Event: Alle Text-Antworten abrufen (für Host)
+        socket.on('get-text-answers', async (data, callback) => {
+            try {
+                if (!socket.isHost) {
+                    return callback({ success: false, error: 'Nur Host kann Antworten sehen' });
+                }
+
+                const { questionId } = data;
+
+                const answersResult = await db.query(
+                    `SELECT ta.*, p.name as player_name 
+                     FROM text_answers ta 
+                     JOIN players p ON ta.player_id = p.id 
+                     WHERE ta.game_id = $1 AND ta.question_id = $2 
+                     ORDER BY ta.submitted_at`,
+                    [socket.gameId, questionId]
+                );
+
+                callback({ 
+                    success: true, 
+                    answers: answersResult.rows 
+                });
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Antworten:', error);
+                callback({ success: false, error: error.message });
+            }
+        });
+
+        // NEU: Event: Text-Antworten bewerten (Host)
+        socket.on('judge-text-answers', async (data, callback) => {
+            try {
+                if (!socket.isHost) {
+                    return callback({ success: false, error: 'Nur Host kann bewerten' });
+                }
+
+                const { correctPlayerIds, questionId } = data;
+
+                let awardedPoints = [];
+
+                // Vergebe Punkte an alle korrekten Spieler
+                for (const playerId of correctPlayerIds) {
+                    await db.query(
+                        'UPDATE players SET score = score + 1 WHERE id = $1',
+                        [playerId]
+                    );
+
+                    await db.query(
+                        'UPDATE text_answers SET is_correct = true, points_awarded = 1, judged_at = CURRENT_TIMESTAMP WHERE game_id = $1 AND question_id = $2 AND player_id = $3',
+                        [socket.gameId, questionId, playerId]
+                    );
+
+                    const playerResult = await db.query(
+                        'SELECT id, name, score FROM players WHERE id = $1',
+                        [playerId]
+                    );
+
+                    awardedPoints.push(playerResult.rows[0]);
+                }
+
+                // Markiere falsche Antworten
+                await db.query(
+                    'UPDATE text_answers SET is_correct = false, judged_at = CURRENT_TIMESTAMP WHERE game_id = $1 AND question_id = $2 AND player_id != ALL($3)',
+                    [socket.gameId, questionId, correctPlayerIds]
+                );
+
+                // Hole aktualisierte Spielerliste
+                const playersResult = await db.query(
+                    'SELECT id, name, score FROM players WHERE game_id = $1 ORDER BY score DESC',
+                    [socket.gameId]
+                );
+
+                callback({ success: true, awardedPoints });
+
+                // Update Scores für alle
+                io.to(socket.roomCode).emit('scores-update', {
+                    players: playersResult.rows
+                });
+
+                // Informiere über Bewertung
+                io.to(socket.roomCode).emit('text-answers-judged', {
+                    correctPlayerIds,
+                    awardedPoints
+                });
+
+                console.log(`⭐ Text-Antworten bewertet - ${correctPlayerIds.length} Spieler bekommen Punkte`);
+            } catch (error) {
+                console.error('Fehler beim Bewerten:', error);
+                callback({ success: false, error: error.message });
+            }
+        });
+
+        // Event: Antwort bewerten (Host) - für Buzzer-Kategorien
         socket.on('judge-answer', async (data, callback) => {
             try {
                 if (!socket.isHost) {
@@ -247,7 +415,6 @@ function setupGameSocket(io, db) {
                 const { playerId, correct } = data;
                 const points = correct ? 1 : 0;
 
-                // Hole Spieler-Info
                 const playerResult = await db.query(
                     'SELECT * FROM players WHERE id = $1',
                     [playerId]
@@ -256,24 +423,28 @@ function setupGameSocket(io, db) {
                 const player = playerResult.rows[0];
 
                 if (correct) {
-                    // Punkte vergeben
                     await db.query(
                         'UPDATE players SET score = score + $1 WHERE id = $2',
                         [points, playerId]
                     );
                 }
 
-                // Hole alle Spieler mit aktuellen Punkten
                 const playersResult = await db.query(
                     'SELECT id, name, score FROM players WHERE game_id = $1 ORDER BY score DESC',
                     [socket.gameId]
                 );
 
+                callback({ 
+                    success: true, 
+                    correct,
+                    playerName: player.name,
+                    newScore: correct ? player.score + 1 : player.score
+                });
+
                 io.to(socket.roomCode).emit('scores-update', {
                     players: playersResult.rows
                 });
 
-                // Sende Ergebnis zurück MIT Spielername
                 io.to(socket.roomCode).emit('answer-judged', {
                     correct,
                     playerId,
@@ -281,15 +452,14 @@ function setupGameSocket(io, db) {
                     points
                 });
 
-                callback({ success: true, correct });
-                console.log(`⭐ Antwort ${correct ? 'richtig' : 'falsch'} für Spieler ${player.name}`);
+                console.log(`⭐ Antwort ${correct ? 'richtig ✅' : 'falsch ❌'} für Spieler ${player.name}`);
             } catch (error) {
                 console.error('Fehler beim Bewerten:', error);
                 callback({ success: false, error: error.message });
             }
         });
 
-        // Event: Buzzer freigeben nach falscher Antwort
+        // Event: Buzzer freigeben
         socket.on('unlock-buzzer', async (callback) => {
             try {
                 if (!socket.isHost) {
@@ -303,7 +473,6 @@ function setupGameSocket(io, db) {
 
                 const game = gameResult.rows[0];
 
-                // Hole aktuelle Frage
                 const questionResult = await db.query(
                     'SELECT * FROM questions WHERE game_id = $1 ORDER BY question_order OFFSET $2 LIMIT 1',
                     [socket.gameId, game.current_question_index]
@@ -312,34 +481,28 @@ function setupGameSocket(io, db) {
                 if (questionResult.rows.length > 0) {
                     const question = questionResult.rows[0];
 
-                    // Lösche alle Buzzes für diese Frage
                     await db.query(
                         'DELETE FROM buzzes WHERE game_id = $1 AND question_id = $2',
                         [socket.gameId, question.id]
                     );
-
-                    console.log(`🗑️ Buzzes gelöscht für Frage ${question.id}`);
                 }
 
-                // Informiere alle, dass Buzzer wieder frei ist
-                io.to(socket.roomCode).emit('buzzer-unlocked');
-
                 callback({ success: true });
-                console.log(`🔓 Buzzer freigegeben in Raum ${socket.roomCode}`);
+                io.to(socket.roomCode).emit('buzzer-unlocked');
+                console.log(`🔓 Buzzer freigegeben`);
             } catch (error) {
                 console.error('Fehler beim Freigeben:', error);
                 callback({ success: false, error: error.message });
             }
         });
 
-        // Event: Nächste Frage (Host)
+        // Event: Nächste Frage
         socket.on('next-question', async (callback) => {
             try {
                 if (!socket.isHost) {
                     return callback({ success: false, error: 'Nur Host kann weiter' });
                 }
 
-                // Erhöhe Fragen-Index
                 await db.query(
                     'UPDATE games SET current_question_index = current_question_index + 1 WHERE id = $1',
                     [socket.gameId]
@@ -352,7 +515,6 @@ function setupGameSocket(io, db) {
 
                 const game = gameResult.rows[0];
 
-                // Hole aktuelle Kategorie
                 const currentCategoryResult = await db.query(
                     'SELECT c.* FROM categories c JOIN game_categories gc ON c.id = gc.category_id WHERE gc.game_id = $1 ORDER BY gc.play_order OFFSET $2 LIMIT 1',
                     [socket.gameId, game.current_category_index]
@@ -360,7 +522,6 @@ function setupGameSocket(io, db) {
 
                 const currentCategory = currentCategoryResult.rows[0];
 
-                // Zähle Fragen in aktueller Kategorie
                 const questionCountResult = await db.query(
                     'SELECT COUNT(*) as count FROM questions WHERE game_id = $1 AND category_id = $2',
                     [socket.gameId, currentCategory.id]
@@ -368,9 +529,7 @@ function setupGameSocket(io, db) {
 
                 const totalQuestionsInCategory = parseInt(questionCountResult.rows[0].count);
 
-                // Prüfe ob wir alle Fragen dieser Kategorie durchhaben
                 if (game.current_question_index >= totalQuestionsInCategory) {
-                    // Gehe zur nächsten Kategorie
                     await db.query(
                         'UPDATE games SET current_category_index = current_category_index + 1, current_question_index = 0 WHERE id = $1',
                         [socket.gameId]
@@ -381,14 +540,12 @@ function setupGameSocket(io, db) {
                         [socket.gameId]
                     );
 
-                    // Hole nächste Kategorie
                     const nextCategoryResult = await db.query(
                         'SELECT c.* FROM categories c JOIN game_categories gc ON c.id = gc.category_id WHERE gc.game_id = $1 ORDER BY gc.play_order OFFSET $2 LIMIT 1',
                         [socket.gameId, updatedGame.rows[0].current_category_index]
                     );
 
                     if (nextCategoryResult.rows.length === 0) {
-                        // Keine Kategorien mehr - Spiel beenden
                         await db.query(
                             'UPDATE games SET status = $1 WHERE id = $2',
                             ['finished', socket.gameId]
@@ -399,35 +556,40 @@ function setupGameSocket(io, db) {
                             [socket.gameId]
                         );
 
+                        callback({ success: true, finished: true });
+
                         io.to(socket.roomCode).emit('game-finished', {
                             players: finalScores.rows
                         });
 
-                        return callback({ success: true, finished: true });
+                        return;
                     }
 
                     const nextCategory = nextCategoryResult.rows[0];
 
-                    // Zeige Kategorie-Wechsel (bleibt bis Host bestätigt)
+                    callback({ success: true, categoryChange: true });
+
                     io.to(socket.roomCode).emit('category-intro', {
                         category: {
                             id: nextCategory.id,
                             name: nextCategory.name,
                             icon: nextCategory.icon,
-                            description: nextCategory.description
+                            description: nextCategory.description,
+                            type: nextCategory.category_type || 'buzzer'
                         }
                     });
 
-                    return callback({ success: true, categoryChange: true });
+                    return;
                 }
 
-                // Normale nächste Frage in gleicher Kategorie
                 const questionResult = await db.query(
                     'SELECT * FROM questions WHERE game_id = $1 AND category_id = $2 ORDER BY question_order OFFSET $3 LIMIT 1',
                     [socket.gameId, currentCategory.id, game.current_question_index]
                 );
 
                 const question = questionResult.rows[0];
+
+                callback({ success: true, finished: false, categoryChange: false });
 
                 io.to(socket.roomCode).emit('next-question', {
                     question: {
@@ -438,12 +600,12 @@ function setupGameSocket(io, db) {
                     category: {
                         id: currentCategory.id,
                         name: currentCategory.name,
-                        icon: currentCategory.icon
+                        icon: currentCategory.icon,
+                        type: currentCategory.category_type || 'buzzer'
                     }
                 });
 
-                callback({ success: true, finished: false, categoryChange: false });
-                console.log(`➡️ Nächste Frage in Raum ${socket.roomCode}`);
+                console.log(`➡️ Nächste Frage`);
             } catch (error) {
                 console.error('Fehler bei nächster Frage:', error);
                 callback({ success: false, error: error.message });
@@ -472,7 +634,6 @@ function setupGameSocket(io, db) {
     });
 }
 
-// Hilfsfunktion: 6-stelliger Room Code
 function generateRoomCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
