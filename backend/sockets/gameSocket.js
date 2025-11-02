@@ -266,7 +266,7 @@ function setupGameSocket(io, db) {
             }
         });
 
-        // NEU: Event: Text-Antwort abgeben (für text_input Kategorien)
+        // Event: Text-Antwort abgeben (für text_input Kategorien)
         socket.on('submit-text-answer', async (data, callback) => {
             try {
                 const { questionId, answerText } = data;
@@ -314,7 +314,7 @@ function setupGameSocket(io, db) {
             }
         });
 
-        // NEU: Event: Alle Text-Antworten abrufen (für Host)
+        // Event: Alle Text-Antworten abrufen (für Host)
         socket.on('get-text-answers', async (data, callback) => {
             try {
                 if (!socket.isHost) {
@@ -342,7 +342,7 @@ function setupGameSocket(io, db) {
             }
         });
 
-        // NEU: Event: Text-Antworten bewerten (Host)
+        // Event: Text-Antworten bewerten (Host)
         socket.on('judge-text-answers', async (data, callback) => {
             try {
                 if (!socket.isHost) {
@@ -496,118 +496,240 @@ function setupGameSocket(io, db) {
             }
         });
 
-        // Event: Nächste Frage
+        // ============================================
+        // 🎰 GLÜCKSRAD EVENTS - NEU!
+        // ============================================
+
+        // Event: Nächste Frage (mit Glücksrad-Chance)
         socket.on('next-question', async (callback) => {
             try {
                 if (!socket.isHost) {
                     return callback({ success: false, error: 'Nur Host kann weiter' });
                 }
 
-                await db.query(
-                    'UPDATE games SET current_question_index = current_question_index + 1 WHERE id = $1',
-                    [socket.gameId]
-                );
+                // 20% Chance auf Glücksrad
+                const wheelChance = Math.random();
+                const triggerWheel = wheelChance < 0.2;
 
-                const gameResult = await db.query(
-                    'SELECT * FROM games WHERE id = $1',
-                    [socket.gameId]
-                );
+                console.log(`🎲 Würfel: ${(wheelChance * 100).toFixed(1)}% - Glücksrad: ${triggerWheel ? 'JA 🎰' : 'NEIN'}`);
 
-                const game = gameResult.rows[0];
-
-                const currentCategoryResult = await db.query(
-                    'SELECT c.* FROM categories c JOIN game_categories gc ON c.id = gc.category_id WHERE gc.game_id = $1 ORDER BY gc.play_order OFFSET $2 LIMIT 1',
-                    [socket.gameId, game.current_category_index]
-                );
-
-                const currentCategory = currentCategoryResult.rows[0];
-
-                const questionCountResult = await db.query(
-                    'SELECT COUNT(*) as count FROM questions WHERE game_id = $1 AND category_id = $2',
-                    [socket.gameId, currentCategory.id]
-                );
-
-                const totalQuestionsInCategory = parseInt(questionCountResult.rows[0].count);
-
-                if (game.current_question_index >= totalQuestionsInCategory) {
-                    await db.query(
-                        'UPDATE games SET current_category_index = current_category_index + 1, current_question_index = 0 WHERE id = $1',
+                if (triggerWheel) {
+                    // Hole alle Spieler für das Glücksrad
+                    const playersResult = await db.query(
+                        'SELECT id, name, score FROM players WHERE game_id = $1',
                         [socket.gameId]
                     );
 
-                    const updatedGame = await db.query(
-                        'SELECT * FROM games WHERE id = $1',
-                        [socket.gameId]
-                    );
+                    callback({ success: true, showWheel: true });
 
-                    const nextCategoryResult = await db.query(
-                        'SELECT c.* FROM categories c JOIN game_categories gc ON c.id = gc.category_id WHERE gc.game_id = $1 ORDER BY gc.play_order OFFSET $2 LIMIT 1',
-                        [socket.gameId, updatedGame.rows[0].current_category_index]
-                    );
-
-                    if (nextCategoryResult.rows.length === 0) {
-                        await db.query(
-                            'UPDATE games SET status = $1 WHERE id = $2',
-                            ['finished', socket.gameId]
-                        );
-
-                        const finalScores = await db.query(
-                            'SELECT id, name, score FROM players WHERE game_id = $1 ORDER BY score DESC',
-                            [socket.gameId]
-                        );
-
-                        callback({ success: true, finished: true });
-
-                        io.to(socket.roomCode).emit('game-finished', {
-                            players: finalScores.rows
-                        });
-
-                        return;
-                    }
-
-                    const nextCategory = nextCategoryResult.rows[0];
-
-                    callback({ success: true, categoryChange: true });
-
-                    io.to(socket.roomCode).emit('category-intro', {
-                        category: {
-                            id: nextCategory.id,
-                            name: nextCategory.name,
-                            icon: nextCategory.icon,
-                            description: nextCategory.description,
-                            type: nextCategory.category_type || 'buzzer'
-                        }
+                    // Zeige Glücksrad nur dem Host
+                    io.to(socket.roomCode).emit('wheel-triggered', {
+                        players: playersResult.rows
                     });
 
+                    console.log('🎰 Glücksrad wird gezeigt!');
                     return;
                 }
 
-                const questionResult = await db.query(
-                    'SELECT * FROM questions WHERE game_id = $1 AND category_id = $2 ORDER BY question_order OFFSET $3 LIMIT 1',
-                    [socket.gameId, currentCategory.id, game.current_question_index]
-                );
+                // Normale Fortsetzung ohne Glücksrad
+                await proceedToNextQuestion(socket, callback, io, db);
 
-                const question = questionResult.rows[0];
-
-                callback({ success: true, finished: false, categoryChange: false });
-
-                io.to(socket.roomCode).emit('next-question', {
-                    question: {
-                        id: question.id,
-                        text: question.question_text,
-                        order: question.question_order
-                    },
-                    category: {
-                        id: currentCategory.id,
-                        name: currentCategory.name,
-                        icon: currentCategory.icon,
-                        type: currentCategory.category_type || 'buzzer'
-                    }
-                });
-
-                console.log(`➡️ Nächste Frage`);
             } catch (error) {
                 console.error('Fehler bei nächster Frage:', error);
+                callback({ success: false, error: error.message });
+            }
+        });
+
+        // Event: Spieler-Rad drehen
+        socket.on('spin-player-wheel', async (callback) => {
+            try {
+                if (!socket.isHost) {
+                    return callback({ success: false, error: 'Nur Host kann drehen' });
+                }
+
+                const playersResult = await db.query(
+                    'SELECT id, name, score FROM players WHERE game_id = $1',
+                    [socket.gameId]
+                );
+
+                const players = playersResult.rows;
+                const selectedPlayer = players[Math.floor(Math.random() * players.length)];
+
+                callback({ success: true, selectedPlayer });
+
+                io.to(socket.roomCode).emit('player-selected', {
+                    player: selectedPlayer
+                });
+
+                console.log(`🎯 Spieler ausgewählt: ${selectedPlayer.name}`);
+            } catch (error) {
+                console.error('Fehler beim Spieler-Rad:', error);
+                callback({ success: false, error: error.message });
+            }
+        });
+
+        // Event: Spieler Entscheidung (Zocken oder Passen)
+        socket.on('wheel-player-decision', async (data, callback) => {
+            try {
+                const { playerId, decision } = data;
+
+                if (decision === 'pass') {
+                    callback({ success: true, passed: true });
+                    
+                    io.to(socket.roomCode).emit('player-passed', {
+                        playerId
+                    });
+
+                    console.log(`🚫 Spieler hat gepasst`);
+                } else {
+                    callback({ success: true, passed: false });
+                    
+                    io.to(socket.roomCode).emit('player-accepted', {
+                        playerId
+                    });
+
+                    console.log(`✅ Spieler zockt!`);
+                }
+            } catch (error) {
+                console.error('Fehler bei Entscheidung:', error);
+                callback({ success: false, error: error.message });
+            }
+        });
+
+        // Event: Strafen/Punkte-Rad drehen
+        socket.on('spin-reward-wheel', async (callback) => {
+            try {
+                if (!socket.isHost) {
+                    return callback({ success: false, error: 'Nur Host kann drehen' });
+                }
+
+                // 50% Chance auf Strafe oder Punkte
+                const isPunishment = Math.random() < 0.5;
+
+                let result;
+
+                if (isPunishment) {
+                    // Hole zufällige Strafe aus Datenbank
+                    const punishmentResult = await db.query(
+                        'SELECT * FROM punishment_templates ORDER BY RANDOM() LIMIT 1'
+                    );
+
+                    if (punishmentResult.rows.length === 0) {
+                        // Fallback wenn keine Strafen in DB
+                        result = {
+                            type: 'punishment',
+                            text: 'Eine Runde aussetzen',
+                            duration: 1,
+                            icon: '⚠️'
+                        };
+                    } else {
+                        const punishment = punishmentResult.rows[0];
+                        result = {
+                            type: 'punishment',
+                            text: punishment.text,
+                            duration: punishment.duration_questions,
+                            icon: punishment.icon
+                        };
+                    }
+                } else {
+                    // Punkte vergeben (4x +1, 3x +2, 2x +3, 1x Bonus)
+                    const pointsDistribution = [
+                        1, 1, 1, 1,  // 4x +1
+                        2, 2, 2,      // 3x +2
+                        3, 3,         // 2x +3
+                        5             // 1x Bonus
+                    ];
+                    const points = pointsDistribution[Math.floor(Math.random() * pointsDistribution.length)];
+
+                    result = {
+                        type: 'points',
+                        points: points,
+                        icon: points === 5 ? '🎁' : '⭐'
+                    };
+                }
+
+                callback({ success: true, result });
+
+                io.to(socket.roomCode).emit('reward-result', {
+                    result
+                });
+
+                console.log(`🎰 Ergebnis: ${result.type === 'punishment' ? result.text : `+${result.points} Punkte`}`);
+            } catch (error) {
+                console.error('Fehler beim Reward-Rad:', error);
+                callback({ success: false, error: error.message });
+            }
+        });
+
+        // Event: Glücksrad-Ergebnis anwenden
+        socket.on('apply-wheel-result', async (data, callback) => {
+            try {
+                if (!socket.isHost) {
+                    return callback({ success: false, error: 'Nur Host kann anwenden' });
+                }
+
+                const { playerId, result } = data;
+
+                if (result.type === 'points') {
+                    // Punkte vergeben
+                    await db.query(
+                        'UPDATE players SET score = score + $1 WHERE id = $2',
+                        [result.points, playerId]
+                    );
+
+                    console.log(`✅ ${result.points} Punkte vergeben`);
+                } else if (result.type === 'punishment') {
+                    // Strafe speichern
+                    await db.query(
+                        'INSERT INTO active_punishments (player_id, game_id, punishment_text, remaining_questions) VALUES ($1, $2, $3, $4)',
+                        [playerId, socket.gameId, result.text, result.duration]
+                    );
+
+                    console.log(`⚠️ Strafe aktiviert: ${result.text}`);
+                }
+
+                // Aktualisierte Spielerliste
+                const playersResult = await db.query(
+                    'SELECT id, name, score FROM players WHERE game_id = $1 ORDER BY score DESC',
+                    [socket.gameId]
+                );
+
+                // Aktive Strafen abrufen
+                const punishmentsResult = await db.query(
+                    'SELECT * FROM active_punishments WHERE game_id = $1 AND remaining_questions > 0',
+                    [socket.gameId]
+                );
+
+                callback({ success: true });
+
+                io.to(socket.roomCode).emit('scores-update', {
+                    players: playersResult.rows
+                });
+
+                io.to(socket.roomCode).emit('punishments-update', {
+                    punishments: punishmentsResult.rows
+                });
+
+                // Jetzt zur nächsten Frage übergehen
+                await proceedToNextQuestion(socket, () => {}, io, db);
+
+            } catch (error) {
+                console.error('Fehler beim Anwenden:', error);
+                callback({ success: false, error: error.message });
+            }
+        });
+
+        // Event: Glücksrad überspringen (bei Pass)
+        socket.on('skip-wheel', async (callback) => {
+            try {
+                if (!socket.isHost) {
+                    return callback({ success: false, error: 'Nur Host kann überspringen' });
+                }
+
+                callback({ success: true });
+                await proceedToNextQuestion(socket, () => {}, io, db);
+            } catch (error) {
+                console.error('Fehler beim Überspringen:', error);
                 callback({ success: false, error: error.message });
             }
         });
@@ -632,6 +754,125 @@ function setupGameSocket(io, db) {
             }
         });
     });
+}
+
+// Hilfsfunktion: Zur nächsten Frage übergehen
+async function proceedToNextQuestion(socket, callback, io, db) {
+    await db.query(
+        'UPDATE games SET current_question_index = current_question_index + 1 WHERE id = $1',
+        [socket.gameId]
+    );
+
+    // Strafen-Countdown aktualisieren
+    await db.query(
+        'UPDATE active_punishments SET remaining_questions = remaining_questions - 1 WHERE game_id = $1 AND remaining_questions > 0',
+        [socket.gameId]
+    );
+
+    // Abgelaufene Strafen entfernen
+    await db.query(
+        'DELETE FROM active_punishments WHERE game_id = $1 AND remaining_questions <= 0',
+        [socket.gameId]
+    );
+
+    const gameResult = await db.query(
+        'SELECT * FROM games WHERE id = $1',
+        [socket.gameId]
+    );
+
+    const game = gameResult.rows[0];
+
+    const currentCategoryResult = await db.query(
+        'SELECT c.* FROM categories c JOIN game_categories gc ON c.id = gc.category_id WHERE gc.game_id = $1 ORDER BY gc.play_order OFFSET $2 LIMIT 1',
+        [socket.gameId, game.current_category_index]
+    );
+
+    const currentCategory = currentCategoryResult.rows[0];
+
+    const questionCountResult = await db.query(
+        'SELECT COUNT(*) as count FROM questions WHERE game_id = $1 AND category_id = $2',
+        [socket.gameId, currentCategory.id]
+    );
+
+    const totalQuestionsInCategory = parseInt(questionCountResult.rows[0].count);
+
+    if (game.current_question_index >= totalQuestionsInCategory) {
+        await db.query(
+            'UPDATE games SET current_category_index = current_category_index + 1, current_question_index = 0 WHERE id = $1',
+            [socket.gameId]
+        );
+
+        const updatedGame = await db.query(
+            'SELECT * FROM games WHERE id = $1',
+            [socket.gameId]
+        );
+
+        const nextCategoryResult = await db.query(
+            'SELECT c.* FROM categories c JOIN game_categories gc ON c.id = gc.category_id WHERE gc.game_id = $1 ORDER BY gc.play_order OFFSET $2 LIMIT 1',
+            [socket.gameId, updatedGame.rows[0].current_category_index]
+        );
+
+        if (nextCategoryResult.rows.length === 0) {
+            await db.query(
+                'UPDATE games SET status = $1 WHERE id = $2',
+                ['finished', socket.gameId]
+            );
+
+            const finalScores = await db.query(
+                'SELECT id, name, score FROM players WHERE game_id = $1 ORDER BY score DESC',
+                [socket.gameId]
+            );
+
+            callback({ success: true, finished: true });
+
+            io.to(socket.roomCode).emit('game-finished', {
+                players: finalScores.rows
+            });
+
+            return;
+        }
+
+        const nextCategory = nextCategoryResult.rows[0];
+
+        callback({ success: true, categoryChange: true });
+
+        io.to(socket.roomCode).emit('category-intro', {
+            category: {
+                id: nextCategory.id,
+                name: nextCategory.name,
+                icon: nextCategory.icon,
+                description: nextCategory.description,
+                type: nextCategory.category_type || 'buzzer'
+            }
+        });
+
+        return;
+    }
+
+    const questionResult = await db.query(
+        'SELECT * FROM questions WHERE game_id = $1 AND category_id = $2 ORDER BY question_order OFFSET $3 LIMIT 1',
+        [socket.gameId, currentCategory.id, game.current_question_index]
+    );
+
+    const question = questionResult.rows[0];
+
+    callback({ success: true, finished: false, categoryChange: false });
+
+    io.to(socket.roomCode).emit('next-question', {
+        question: {
+            id: question.id,
+            text: question.question_text,
+            order: question.question_order
+        },
+        category: {
+            id: currentCategory.id,
+            name: currentCategory.name,
+            icon: currentCategory.icon,
+            type: currentCategory.category_type || 'buzzer'
+        }
+    });
+
+    console.log(`➡️ Nächste Frage`);
 }
 
 function generateRoomCode() {

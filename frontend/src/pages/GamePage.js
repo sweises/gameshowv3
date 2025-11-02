@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../sockets';
+import WheelOfFortune from '../components/WheelOfFortune'; // NEU!
 
 // Emoji Mapping
 const ICON_MAP = {
@@ -46,13 +47,20 @@ function GamePage() {
   const [hostFeedback, setHostFeedback] = useState(null);
   const [isJudging, setIsJudging] = useState(false);
 
-  // NEU: Text-Input States
+  // Text-Input States
   const [textAnswer, setTextAnswer] = useState('');
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [textAnswers, setTextAnswers] = useState([]);
   const [selectedCorrectIds, setSelectedCorrectIds] = useState([]);
   const [answersSubmitted, setAnswersSubmitted] = useState(0);
-  const [showAnswers, setShowAnswers] = useState(false); // NEU: Antworten verstecken
+  const [showAnswers, setShowAnswers] = useState(false);
+
+  // NEU: Glücksrad States
+  const [showWheel, setShowWheel] = useState(false);
+  const [wheelPlayers, setWheelPlayers] = useState([]);
+  const [selectedWheelPlayer, setSelectedWheelPlayer] = useState(null);
+  const [wheelResult, setWheelResult] = useState(null);
+  const [activePunishments, setActivePunishments] = useState([]);
 
   useEffect(() => {
     if (!roomCode) {
@@ -79,12 +87,9 @@ function GamePage() {
     // Socket Events
     socket.on('category-intro', (data) => {
       console.log('🎯 category-intro empfangen:', data);
-      console.log('   → Kategorie-Typ:', data.category?.type);
-      console.log('   → Ist Host?', isHost);
       setCurrentCategory(data.category);
       setShowCategoryIntro(true);
-      // WICHTIG: Host wartet immer auf Start-Button, egal welcher Typ
-      setWaitingForCategoryStart(true); // Immer true setzen!
+      setWaitingForCategoryStart(true);
       setQuestion(null);
       setBuzzerLocked(true);
       resetQuestionState();
@@ -92,8 +97,6 @@ function GamePage() {
 
     socket.on('category-started', (data) => {
       console.log('🎯 category-started empfangen:', data);
-      console.log('   → Kategorie-Typ:', data.category?.type);
-      console.log('   → Frage:', data.question);
       setQuestion(data.question);
       setCurrentCategory(data.category);
       setShowCategoryIntro(false);
@@ -101,9 +104,6 @@ function GamePage() {
       
       if (data.category.type === 'buzzer') {
         setBuzzerLocked(false);
-        console.log('   → Buzzer freigegeben');
-      } else {
-        console.log('   → Text-Eingabe Modus aktiv');
       }
       
       resetQuestionState();
@@ -119,6 +119,7 @@ function GamePage() {
       }
       
       resetQuestionState();
+      setShowWheel(false); // Glücksrad verstecken
     });
 
     socket.on('player-buzzed', (data) => {
@@ -133,7 +134,6 @@ function GamePage() {
       console.log('📝 Text-Antwort eingegangen:', data);
       setAnswersSubmitted(prev => prev + 1);
       
-      // NEU: Wenn Antworten sichtbar sind, automatisch neu laden
       if (isHost && question && showAnswers) {
         setTimeout(() => {
           loadTextAnswers();
@@ -175,6 +175,18 @@ function GamePage() {
       setPlayers(data.players);
     });
 
+    // NEU: Glücksrad Events
+    socket.on('wheel-triggered', (data) => {
+      console.log('🎰 Glücksrad wurde ausgelöst!', data);
+      setWheelPlayers(data.players);
+      setShowWheel(true);
+    });
+
+    socket.on('punishments-update', (data) => {
+      console.log('⚠️ Strafen aktualisiert:', data);
+      setActivePunishments(data.punishments);
+    });
+
     socket.on('game-finished', (data) => {
       setPlayers(data.players);
       setGameFinished(true);
@@ -193,6 +205,8 @@ function GamePage() {
       socket.off('answer-judged');
       socket.off('buzzer-unlocked');
       socket.off('scores-update');
+      socket.off('wheel-triggered');
+      socket.off('punishments-update');
       socket.off('game-finished');
     };
   }, [roomCode, navigate, isHost, gameId, question]);
@@ -211,7 +225,7 @@ function GamePage() {
     setTextAnswers([]);
     setSelectedCorrectIds([]);
     setAnswersSubmitted(0);
-    setShowAnswers(false); // NEU: Antworten wieder verstecken
+    setShowAnswers(false);
   };
 
   const loadTextAnswers = () => {
@@ -220,7 +234,7 @@ function GamePage() {
     socket.emit('get-text-answers', { questionId: question.id }, (response) => {
       if (response.success) {
         setTextAnswers(response.answers);
-        setShowAnswers(true); // NEU: Antworten sichtbar machen
+        setShowAnswers(true);
       }
     });
   };
@@ -326,8 +340,6 @@ function GamePage() {
 
   const handleStartCategory = () => {
     console.log('🚀 handleStartCategory aufgerufen');
-    console.log('   → Socket verbunden?', socket.connected);
-    console.log('   → gameId:', gameId);
     
     socket.emit('start-category', (response) => {
       console.log('📥 start-category Response:', response);
@@ -343,7 +355,10 @@ function GamePage() {
   const handleNextQuestion = () => {
     socket.emit('next-question', (response) => {
       if (response.success) {
-        if (response.finished) {
+        if (response.showWheel) {
+          console.log('🎰 Glücksrad wird angezeigt!');
+          // Glücksrad wird über socket event 'wheel-triggered' angezeigt
+        } else if (response.finished) {
           console.log('Spiel beendet');
         } else if (response.categoryChange) {
           console.log('Kategoriewechsel');
@@ -352,15 +367,24 @@ function GamePage() {
     });
   };
 
+  // NEU: Glücksrad Callbacks
+  const handleWheelPlayerSelected = (player) => {
+    setSelectedWheelPlayer(player);
+  };
+
+  const handleWheelRewardResult = (result) => {
+    setWheelResult(result);
+  };
+
+  const handleWheelComplete = (status) => {
+    console.log('🎰 Glücksrad abgeschlossen:', status);
+    setShowWheel(false);
+    setSelectedWheelPlayer(null);
+    setWheelResult(null);
+  };
+
   // Kategorie Intro Screen
   if (showCategoryIntro && currentCategory) {
-    console.log('🖼️ Zeige Category-Intro:', {
-      categoryName: currentCategory.name,
-      categoryType: currentCategory.type,
-      isHost: isHost,
-      waitingForCategoryStart: waitingForCategoryStart
-    });
-
     return (
       <div className="page" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
         <div style={{ textAlign: 'center', color: 'white', maxWidth: '800px' }}>
@@ -394,28 +418,19 @@ function GamePage() {
           </div>
 
           {isHost && (
-            <>
-              <p style={{ 
-                fontSize: '1rem', 
-                color: 'rgba(255,255,255,0.8)',
-                marginBottom: '20px'
-              }}>
-                Debug: waitingForCategoryStart = {waitingForCategoryStart ? 'true' : 'false'}
-              </p>
-              <button
-                className="btn btn-success"
-                onClick={handleStartCategory}
-                style={{
-                  fontSize: '1.5rem',
-                  padding: '20px 50px',
-                  background: 'white',
-                  color: '#667eea',
-                  border: 'none'
-                }}
-              >
-                ▶️ Kategorie Starten
-              </button>
-            </>
+            <button
+              className="btn btn-success"
+              onClick={handleStartCategory}
+              style={{
+                fontSize: '1.5rem',
+                padding: '20px 50px',
+                background: 'white',
+                color: '#667eea',
+                border: 'none'
+              }}
+            >
+              ▶️ Kategorie Starten
+            </button>
           )}
 
           {!isHost && (
@@ -484,6 +499,19 @@ function GamePage() {
 
   const isTextInput = currentCategory?.type === 'text_input';
 
+  // NEU: Glücksrad Overlay (nur für Host)
+  if (showWheel && isHost) {
+    return (
+      <WheelOfFortune
+        players={wheelPlayers}
+        onPlayerSelected={handleWheelPlayerSelected}
+        onRewardResult={handleWheelRewardResult}
+        onComplete={handleWheelComplete}
+        socket={socket}
+      />
+    );
+  }
+
   // Main Game Screen
   return (
     <div className="page">
@@ -518,6 +546,35 @@ function GamePage() {
             </div>
           )}
         </div>
+
+        {/* Aktive Strafen Anzeige */}
+        {activePunishments.length > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)',
+            color: 'white',
+            padding: '15px 20px',
+            borderRadius: '15px',
+            marginBottom: '20px'
+          }}>
+            <h4 style={{ margin: '0 0 10px 0', color: 'white' }}>⚠️ Aktive Strafen:</h4>
+            {activePunishments.map((punishment) => {
+              const player = players.find(p => p.id === punishment.player_id);
+              return (
+                <div key={punishment.id} style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  marginBottom: '5px'
+                }}>
+                  <strong>{player?.name || 'Spieler'}</strong>: {punishment.punishment_text} 
+                  <span style={{ marginLeft: '10px', fontSize: '0.9rem' }}>
+                    (noch {punishment.remaining_questions} Frage{punishment.remaining_questions !== 1 ? 'n' : ''})
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Host Feedback Banner */}
         {isHost && hostFeedback && (
@@ -821,24 +878,29 @@ function GamePage() {
             <h3 style={{ marginBottom: '15px', color: '#667eea' }}>
               Punktestand:
             </h3>
-            {players.map((player) => (
-              <div 
-                key={player.id} 
-                className="player-item"
-                style={{
-                  background: player.id === buzzerPlayerId ? '#fff3cd' : 'white',
-                  border: player.id === buzzerPlayerId ? '2px solid #ffc107' : 'none'
-                }}
-              >
-                <span className="player-name">
-                  {player.id === playerId && '⭐ '}
-                  {player.id === buzzerPlayerId && '🔴 '}
-                  {player.name}
-                  {player.id === playerId && ' (Du)'}
-                </span>
-                <span className="player-score">{player.score}</span>
-              </div>
-            ))}
+            {players.map((player) => {
+              const playerPunishment = activePunishments.find(p => p.player_id === player.id);
+              return (
+                <div 
+                  key={player.id} 
+                  className="player-item"
+                  style={{
+                    background: player.id === buzzerPlayerId ? '#fff3cd' : 'white',
+                    border: player.id === buzzerPlayerId ? '2px solid #ffc107' : 'none'
+                  }}
+                >
+                  <span className="player-name">
+                    {player.id === playerId && '⭐ '}
+                    {player.id === buzzerPlayerId && '🔴 '}
+                    {playerPunishment && '⚠️ '}
+                    {player.name}
+                    {player.id === playerId && ' (Du)'}
+                    {playerPunishment && ` - ${playerPunishment.punishment_text}`}
+                  </span>
+                  <span className="player-score">{player.score}</span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
