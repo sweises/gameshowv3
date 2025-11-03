@@ -27,7 +27,7 @@
   background: white;
   border-radius: 30px;
   padding: 40px;
-  max-width: 800px;
+  max-width: 900px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
@@ -64,13 +64,13 @@
 }
 
 /* ============================================ */
-/* SPIELER-RAD */
+/* SPIELER-RAD (Rad 1) */
 /* ============================================ */
 
 .player-wheel {
   position: relative;
-  width: 400px;
-  height: 400px;
+  width: 450px;
+  height: 450px;
   margin: 0 auto 40px;
 }
 
@@ -80,12 +80,16 @@
   height: 100%;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  box-shadow: 0 10px 40px rgba(102, 126, 234, 0.5);
+  box-shadow: 
+    0 10px 40px rgba(102, 126, 234, 0.5),
+    inset 0 0 0 20px rgba(255, 255, 255, 0.1),
+    inset 0 0 0 22px rgba(0, 0, 0, 0.2);
   transition: transform 0.1s ease;
+  border: 8px solid #fff;
 }
 
 .wheel-spinner.spinning {
-  animation: spin 3s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+  animation: spin 6s cubic-bezier(0.17, 0.67, 0.3, 0.98);
 }
 
 @keyframes spin {
@@ -93,7 +97,7 @@
     transform: rotate(0deg);
   }
   100% {
-    transform: rotate(1800deg); /* 5 volle Umdrehungen */
+    transform: rotate(3600deg); /* 10 volle Umdrehungen */
   }
 }
 
@@ -104,26 +108,41 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 30px;
+  padding-top: 40px;
   transform-origin: 50% 50%;
 }
 
 .player-name-segment {
   color: white;
   font-weight: bold;
-  font-size: 1.2rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  font-size: 1.3rem;
+  text-shadow: 
+    2px 2px 4px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 5px 15px;
+  border-radius: 20px;
 }
 
 .wheel-pointer {
   position: absolute;
-  top: -30px;
+  top: -40px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 3rem;
+  font-size: 4rem;
   color: #eb3349;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
   z-index: 10;
+  animation: pointerBounce 1s infinite;
+}
+
+@keyframes pointerBounce {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(10px);
+  }
 }
 
 /* ============================================ */
@@ -145,10 +164,15 @@
 
 .info-box {
   flex: 1;
-  min-width: 200px;
-  padding: 25px;
-  border-radius: 15px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  min-width: 250px;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease;
+}
+
+.info-box:hover {
+  transform: translateY(-5px);
 }
 
 .reward-box {
@@ -162,46 +186,58 @@
 }
 
 .info-box h3 {
-  font-size: 1.5rem;
-  margin-bottom: 15px;
+  font-size: 1.8rem;
+  margin-bottom: 20px;
   color: white;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .reward-list, .punishment-list {
-  font-size: 1.1rem;
-  line-height: 1.8;
+  font-size: 1.2rem;
+  line-height: 2;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .vs {
-  font-size: 2rem;
+  font-size: 3rem;
   font-weight: bold;
   color: #667eea;
   align-self: center;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .decision-buttons {
   display: flex;
   gap: 20px;
   justify-content: center;
-  margin-top: 30px;
+  margin-top: 40px;
+  flex-wrap: wrap;
 }
 
 .decision-result {
   margin-top: 30px;
-  padding: 30px;
-  border-radius: 15px;
-  background: #f0f4ff;
-  animation: pulse 1s infinite;
+  padding: 40px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  animation: pulse 1.5s infinite;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
 }
 
 .decision-result h2 {
-  font-size: 2rem;
-  color: #667eea;
-  margin-bottom: 10px;
+  font-size: 2.5rem;
+  color: white;
+  margin-bottom: 15px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.decision-result p {
+  font-size: 1.3rem;
+  color: rgba(255, 255, 255, 0.95);
 }
 
 /* ============================================ */
-/* BELOHNUNGS-RAD */
+/* BELOHNUNGS-RAD (Rad 2) - KORREKT! */
 /* ============================================ */
 
 .reward-wheel {
@@ -216,14 +252,40 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: white;
   border: 10px solid #667eea;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    inset 0 0 50px rgba(102, 126, 234, 0.1);
   transition: transform 0.1s ease;
+  
+  /* 20 Segmente mit conic-gradient */
+  background: conic-gradient(
+    from 0deg,
+    #28a745 0deg 18deg,      /* Punkte +1 */
+    #dc3545 18deg 36deg,     /* Strafe */
+    #28a745 36deg 54deg,     /* Punkte +1 */
+    #dc3545 54deg 72deg,     /* Strafe */
+    #20c997 72deg 90deg,     /* Punkte +2 */
+    #c82333 90deg 108deg,    /* Strafe */
+    #28a745 108deg 126deg,   /* Punkte +1 */
+    #dc3545 126deg 144deg,   /* Strafe */
+    #20c997 144deg 162deg,   /* Punkte +2 */
+    #c82333 162deg 180deg,   /* Strafe */
+    #38ef7d 180deg 198deg,   /* Punkte +3 */
+    #dc3545 198deg 216deg,   /* Strafe */
+    #28a745 216deg 234deg,   /* Punkte +1 */
+    #c82333 234deg 252deg,   /* Strafe */
+    #20c997 252deg 270deg,   /* Punkte +2 */
+    #dc3545 270deg 288deg,   /* Strafe */
+    #ffd700 288deg 306deg,   /* JACKPOT +5 */
+    #c82333 306deg 324deg,   /* Strafe */
+    #38ef7d 324deg 342deg,   /* Punkte +3 */
+    #dc3545 342deg 360deg    /* Strafe */
+  );
 }
 
 .wheel-spinner-reward.spinning {
-  animation: spinReward 3s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+  animation: spinReward 6s cubic-bezier(0.17, 0.67, 0.3, 0.98);
 }
 
 @keyframes spinReward {
@@ -231,32 +293,64 @@
     transform: rotate(0deg);
   }
   100% {
-    transform: rotate(1800deg);
+    transform: rotate(3600deg); /* 10 volle Umdrehungen */
   }
 }
 
+/* Segment-Texte über das Rad legen */
 .wheel-segment-reward {
   position: absolute;
-  width: 100%;
-  height: 100%;
+  width: 50%;
+  height: 50%;
+  top: 0;
+  left: 50%;
+  transform-origin: 0 100%;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 40px;
-  font-size: 1.5rem;
+  padding-top: 20px;
+  font-size: 1.8rem;
   font-weight: bold;
-  transform-origin: 50% 50%;
-  clip-path: polygon(50% 50%, 50% 0%, 52% 0%);
+  color: white;
+  text-shadow: 
+    2px 2px 4px rgba(0, 0, 0, 0.8),
+    0 0 10px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 
-.wheel-segment-reward.points {
-  color: #11998e;
-  background: linear-gradient(180deg, #d4edda 0%, #c3e6cb 100%);
+/* Trennlinien zwischen Segmenten */
+.wheel-spinner-reward::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    transparent 0deg 17deg,
+    rgba(0, 0, 0, 0.3) 17deg 18deg
+  );
 }
 
-.wheel-segment-reward.punishment {
-  color: #eb3349;
-  background: linear-gradient(180deg, #f8d7da 0%, #f5c6cb 100%);
+/* Zentrierter Kreis in der Mitte */
+.wheel-spinner-reward::after {
+  content: '🎰';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+  z-index: 100;
 }
 
 /* ============================================ */
@@ -266,7 +360,7 @@
 .result-display {
   text-align: center;
   padding: 40px;
-  animation: bounceIn 0.6s ease;
+  animation: bounceIn 0.8s ease;
 }
 
 @keyframes bounceIn {
@@ -275,7 +369,7 @@
     opacity: 0;
   }
   50% {
-    transform: scale(1.05);
+    transform: scale(1.1);
   }
   70% {
     transform: scale(0.9);
@@ -287,24 +381,34 @@
 }
 
 .result-icon {
-  font-size: 8rem;
-  margin-bottom: 20px;
-  animation: pulse 2s infinite;
+  font-size: 10rem;
+  margin-bottom: 30px;
+  animation: pulseIcon 2s infinite;
+}
+
+@keyframes pulseIcon {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }
 
 .points-icon {
-  filter: drop-shadow(0 0 20px rgba(56, 239, 125, 0.5));
+  filter: drop-shadow(0 0 30px rgba(56, 239, 125, 0.7));
 }
 
 .punishment-icon {
-  filter: drop-shadow(0 0 20px rgba(235, 51, 73, 0.5));
+  filter: drop-shadow(0 0 30px rgba(235, 51, 73, 0.7));
 }
 
 .result-text {
-  font-size: 3rem;
+  font-size: 3.5rem;
   color: #11998e;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
   font-weight: bold;
+  text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
 }
 
 .result-text.punishment-text {
@@ -312,21 +416,31 @@
 }
 
 .result-player {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   color: #666;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
 }
 
 .punishment-badge {
   display: inline-block;
   background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
   color: white;
-  padding: 20px 40px;
-  border-radius: 15px;
-  font-size: 1.5rem;
+  padding: 25px 50px;
+  border-radius: 20px;
+  font-size: 1.8rem;
   font-weight: bold;
-  box-shadow: 0 5px 20px rgba(235, 51, 73, 0.4);
+  box-shadow: 0 10px 30px rgba(235, 51, 73, 0.5);
   margin-top: 20px;
+  animation: wiggle 1s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(-2deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
 }
 
 /* ============================================ */
@@ -334,17 +448,19 @@
 /* ============================================ */
 
 .wheel-btn {
-  font-size: 1.3rem;
-  padding: 20px 50px;
+  font-size: 1.5rem;
+  padding: 20px 60px;
   margin: 10px;
   text-transform: uppercase;
   letter-spacing: 2px;
   font-weight: bold;
   transition: all 0.3s ease;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .wheel-btn:hover:not(:disabled) {
-  transform: translateY(-3px) scale(1.05);
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
 }
 
 .wheel-btn:active:not(:disabled) {
@@ -354,6 +470,33 @@
 .wheel-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Spinning Animation Overlay */
+.wheel-spinner.spinning::after,
+.wheel-spinner-reward.spinning::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.3) 0%,
+    transparent 70%
+  );
+  animation: shimmer 0.5s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* ============================================ */
@@ -369,15 +512,19 @@
     font-size: 2rem;
   }
 
-  .player-wheel,
-  .reward-wheel {
+  .player-wheel {
     width: 300px;
     height: 300px;
   }
 
+  .reward-wheel {
+    width: 320px;
+    height: 320px;
+  }
+
   .wheel-btn {
-    font-size: 1rem;
-    padding: 15px 30px;
+    font-size: 1.1rem;
+    padding: 15px 35px;
   }
 
   .decision-info {
@@ -386,13 +533,47 @@
 
   .vs {
     transform: rotate(90deg);
+    margin: 20px 0;
   }
 
   .result-icon {
-    font-size: 5rem;
+    font-size: 6rem;
   }
 
   .result-text {
-    font-size: 2rem;
+    font-size: 2.5rem;
+  }
+
+  .player-name-segment {
+    font-size: 1rem;
+    padding: 3px 10px;
+  }
+
+  .wheel-segment-reward {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .player-wheel {
+    width: 250px;
+    height: 250px;
+  }
+
+  .reward-wheel {
+    width: 280px;
+    height: 280px;
+  }
+
+  .info-box {
+    min-width: 100%;
+  }
+
+  .decision-buttons {
+    flex-direction: column;
+  }
+
+  .wheel-btn {
+    width: 100%;
   }
 }

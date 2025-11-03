@@ -60,7 +60,6 @@ function GamePage() {
   const [wheelPlayers, setWheelPlayers] = useState([]);
   const [selectedWheelPlayer, setSelectedWheelPlayer] = useState(null);
   const [wheelResult, setWheelResult] = useState(null);
-  const [activePunishments, setActivePunishments] = useState([]);
 
   useEffect(() => {
     if (!roomCode) {
@@ -182,11 +181,6 @@ function GamePage() {
       setShowWheel(true);
     });
 
-    socket.on('punishments-update', (data) => {
-      console.log('⚠️ Strafen aktualisiert:', data);
-      setActivePunishments(data.punishments);
-    });
-
     socket.on('game-finished', (data) => {
       setPlayers(data.players);
       setGameFinished(true);
@@ -206,7 +200,6 @@ function GamePage() {
       socket.off('buzzer-unlocked');
       socket.off('scores-update');
       socket.off('wheel-triggered');
-      socket.off('punishments-update');
       socket.off('game-finished');
     };
   }, [roomCode, navigate, isHost, gameId, question]);
@@ -547,35 +540,6 @@ function GamePage() {
           )}
         </div>
 
-        {/* Aktive Strafen Anzeige */}
-        {activePunishments.length > 0 && (
-          <div style={{
-            background: 'linear-gradient(135deg, #eb3349 0%, #f45c43 100%)',
-            color: 'white',
-            padding: '15px 20px',
-            borderRadius: '15px',
-            marginBottom: '20px'
-          }}>
-            <h4 style={{ margin: '0 0 10px 0', color: 'white' }}>⚠️ Aktive Strafen:</h4>
-            {activePunishments.map((punishment) => {
-              const player = players.find(p => p.id === punishment.player_id);
-              return (
-                <div key={punishment.id} style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  marginBottom: '5px'
-                }}>
-                  <strong>{player?.name || 'Spieler'}</strong>: {punishment.punishment_text} 
-                  <span style={{ marginLeft: '10px', fontSize: '0.9rem' }}>
-                    (noch {punishment.remaining_questions} Frage{punishment.remaining_questions !== 1 ? 'n' : ''})
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         {/* Host Feedback Banner */}
         {isHost && hostFeedback && (
           <div style={{
@@ -604,6 +568,32 @@ function GamePage() {
         {/* Frage anzeigen */}
         {question && (
           <div className="question-container">
+            {/* Bild anzeigen falls vorhanden */}
+            {question.image_url && (
+              <div style={{
+                marginBottom: '25px',
+                display: 'flex',
+                justifyContent: 'center'
+              }}>
+                <img
+                  src={question.image_url}
+                  alt="Frage Bild"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '400px',
+                    borderRadius: '15px',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+                    objectFit: 'contain'
+                  }}
+                  onError={(e) => {
+                    // Fallback bei Ladefehler
+                    e.target.style.display = 'none';
+                    console.error('Bild konnte nicht geladen werden:', question.image_url);
+                  }}
+                />
+              </div>
+            )}
+
             <p className="question-text">
               {question.text}
             </p>
@@ -879,7 +869,6 @@ function GamePage() {
               Punktestand:
             </h3>
             {players.map((player) => {
-              const playerPunishment = activePunishments.find(p => p.player_id === player.id);
               return (
                 <div 
                   key={player.id} 
@@ -892,10 +881,8 @@ function GamePage() {
                   <span className="player-name">
                     {player.id === playerId && '⭐ '}
                     {player.id === buzzerPlayerId && '🔴 '}
-                    {playerPunishment && '⚠️ '}
                     {player.name}
                     {player.id === playerId && ' (Du)'}
-                    {playerPunishment && ` - ${playerPunishment.punishment_text}`}
                   </span>
                   <span className="player-score">{player.score}</span>
                 </div>

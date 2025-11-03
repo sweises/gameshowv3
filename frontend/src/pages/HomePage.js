@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import QRCodeDisplay from '../components/QRCodeDisplay';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -24,6 +25,9 @@ function HomePage() {
           👥 Spiel Beitreten
         </button>
       </div>
+
+      {/* QR-Code unten rechts */}
+      <QRCodeDisplay />
     </div>
   );
 }

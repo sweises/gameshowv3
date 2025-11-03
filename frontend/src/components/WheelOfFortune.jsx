@@ -8,7 +8,7 @@ function WheelOfFortune({
   onComplete,
   socket 
 }) {
-  const [phase, setPhase] = useState('player-selection'); // player-selection, player-decision, reward-spin, result
+  const [phase, setPhase] = useState('player-selection');
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [spinning, setSpinning] = useState(false);
   const [rewardResult, setRewardResult] = useState(null);
@@ -17,6 +17,7 @@ function WheelOfFortune({
   // Socket Events
   useEffect(() => {
     socket.on('player-selected', (data) => {
+      setSpinning(false); // Animation beendet
       setSelectedPlayer(data.player);
       setPhase('player-decision');
     });
@@ -37,6 +38,7 @@ function WheelOfFortune({
     });
 
     socket.on('reward-result', (data) => {
+      setSpinning(false); // Animation beendet
       setRewardResult(data.result);
       setPhase('result');
     });
@@ -56,11 +58,12 @@ function WheelOfFortune({
     
     socket.emit('spin-player-wheel', (response) => {
       if (response.success) {
-        // Animation läuft - warten auf server event
-        setTimeout(() => {
-          setSpinning(false);
-          onPlayerSelected(response.selectedPlayer);
-        }, 3000);
+        // Backend wartet jetzt 6 Sekunden bevor player-selected Event kommt
+        // Kein setTimeout mehr nötig hier
+        onPlayerSelected(response.selectedPlayer);
+      } else {
+        setSpinning(false);
+        console.error('Fehler beim Drehen:', response.error);
       }
     });
   };
@@ -69,6 +72,10 @@ function WheelOfFortune({
     socket.emit('wheel-player-decision', {
       playerId: selectedPlayer.id,
       decision
+    }, (response) => {
+      if (!response.success) {
+        console.error('Fehler bei Entscheidung:', response.error);
+      }
     });
   };
 
@@ -79,10 +86,12 @@ function WheelOfFortune({
     
     socket.emit('spin-reward-wheel', (response) => {
       if (response.success) {
-        setTimeout(() => {
-          setSpinning(false);
-          onRewardResult(response.result);
-        }, 3000);
+        // Backend wartet jetzt 6 Sekunden bevor reward-result Event kommt
+        // Kein setTimeout mehr nötig hier
+        onRewardResult(response.result);
+      } else {
+        setSpinning(false);
+        console.error('Fehler beim Drehen:', response.error);
       }
     });
   };
@@ -94,6 +103,8 @@ function WheelOfFortune({
     }, (response) => {
       if (response.success) {
         onComplete('completed');
+      } else {
+        console.error('Fehler beim Anwenden:', response.error);
       }
     });
   };
@@ -110,19 +121,22 @@ function WheelOfFortune({
 
           <div className="player-wheel">
             <div className={`wheel-spinner ${spinning ? 'spinning' : ''}`}>
-              {players.map((player, index) => (
-                <div
-                  key={player.id}
-                  className="wheel-segment"
-                  style={{
-                    transform: `rotate(${(360 / players.length) * index}deg)`,
-                  }}
-                >
-                  <span className="player-name-segment">
-                    {player.name}
-                  </span>
-                </div>
-              ))}
+              {players.map((player, index) => {
+                const rotation = (360 / players.length) * index;
+                return (
+                  <div
+                    key={player.id}
+                    className="wheel-segment"
+                    style={{
+                      transform: `rotate(${rotation}deg)`,
+                    }}
+                  >
+                    <span className="player-name-segment">
+                      {player.name}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
             <div className="wheel-pointer">▼</div>
           </div>
@@ -134,6 +148,19 @@ function WheelOfFortune({
           >
             {spinning ? '🔄 Dreht...' : '🎯 RAD DREHEN!'}
           </button>
+
+          {spinning && (
+            <div style={{
+              textAlign: 'center',
+              marginTop: '20px',
+              fontSize: '1.2rem',
+              color: '#667eea',
+              fontWeight: 'bold',
+              animation: 'pulse 1s infinite'
+            }}>
+              Das Rad dreht sich...
+            </div>
+          )}
         </div>
       </div>
     );
@@ -154,7 +181,7 @@ function WheelOfFortune({
               <div className="info-box reward-box">
                 <h3>✨ Mögliche Belohnungen</h3>
                 <div className="reward-list">
-                  <div>⭐ +1 bis +3 Punkte</div>
+                  <div>⭐ +1, +2 oder +3 Punkte</div>
                   <div>🎁 +5 Punkte (Jackpot!)</div>
                 </div>
               </div>
@@ -165,7 +192,7 @@ function WheelOfFortune({
                 <h3>⚠️ Mögliche Strafen</h3>
                 <div className="punishment-list">
                   <div>😵 Lustige Herausforderungen</div>
-                  <div>🎭 Lustige Aktionen</div>
+                  <div>🎭 Real-Life Aufgaben</div>
                 </div>
               </div>
             </div>
@@ -218,27 +245,68 @@ function WheelOfFortune({
 
           <div className="reward-wheel">
             <div className={`wheel-spinner-reward ${spinning ? 'spinning' : ''}`}>
-              {/* 10 Punkte-Felder */}
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(0deg)' }}>⭐ +1</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(18deg)' }}>⚠️</div>
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(36deg)' }}>⭐ +1</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(54deg)' }}>⚠️</div>
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(72deg)' }}>⭐ +2</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(90deg)' }}>⚠️</div>
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(108deg)' }}>⭐ +1</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(126deg)' }}>⚠️</div>
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(144deg)' }}>⭐ +2</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(162deg)' }}>⚠️</div>
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(180deg)' }}>⭐ +3</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(198deg)' }}>⚠️</div>
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(216deg)' }}>⭐ +1</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(234deg)' }}>⚠️</div>
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(252deg)' }}>⭐ +2</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(270deg)' }}>⚠️</div>
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(288deg)' }}>🎁 +5</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(306deg)' }}>⚠️</div>
-              <div className="wheel-segment-reward points" style={{ transform: 'rotate(324deg)' }}>⭐ +3</div>
-              <div className="wheel-segment-reward punishment" style={{ transform: 'rotate(342deg)' }}>⚠️</div>
+              {/* Rad wird durch conic-gradient in CSS dargestellt */}
+              {/* Texte über dem Rad */}
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(9deg)' }}>
+                <span>⭐ +1</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(27deg)' }}>
+                <span>⚠️</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(45deg)' }}>
+                <span>⭐ +1</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(63deg)' }}>
+                <span>⚠️</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(81deg)' }}>
+                <span>⭐ +2</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(99deg)' }}>
+                <span>⚠️</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(117deg)' }}>
+                <span>⭐ +1</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(135deg)' }}>
+                <span>⚠️</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(153deg)' }}>
+                <span>⭐ +2</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(171deg)' }}>
+                <span>⚠️</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(189deg)' }}>
+                <span>⭐ +3</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(207deg)' }}>
+                <span>⚠️</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(225deg)' }}>
+                <span>⭐ +1</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(243deg)' }}>
+                <span>⚠️</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(261deg)' }}>
+                <span>⭐ +2</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(279deg)' }}>
+                <span>⚠️</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(297deg)', fontSize: '2rem' }}>
+                <span>🎁 +5</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(315deg)' }}>
+                <span>⚠️</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(333deg)' }}>
+                <span>⭐ +3</span>
+              </div>
+              <div className="wheel-segment-reward" style={{ transform: 'rotate(351deg)' }}>
+                <span>⚠️</span>
+              </div>
             </div>
             <div className="wheel-pointer">▼</div>
           </div>
@@ -250,6 +318,19 @@ function WheelOfFortune({
           >
             {spinning ? '🔄 Dreht...' : '🎰 JETZT DREHEN!'}
           </button>
+
+          {spinning && (
+            <div style={{
+              textAlign: 'center',
+              marginTop: '20px',
+              fontSize: '1.2rem',
+              color: '#eb3349',
+              fontWeight: 'bold',
+              animation: 'pulse 1s infinite'
+            }}>
+              Spannung steigt... 🎲
+            </div>
+          )}
         </div>
       </div>
     );
@@ -273,7 +354,18 @@ function WheelOfFortune({
                 <h2 className="result-text">
                   +{rewardResult.points} Punkt{rewardResult.points !== 1 ? 'e' : ''}!
                 </h2>
-                <p className="result-player">{selectedPlayer.name} bekommt {rewardResult.points} Punkt{rewardResult.points !== 1 ? 'e' : ''}!</p>
+                <p className="result-player">
+                  {selectedPlayer.name} bekommt {rewardResult.points} Punkt{rewardResult.points !== 1 ? 'e' : ''}!
+                </p>
+                {rewardResult.points === 5 && (
+                  <div style={{
+                    fontSize: '2rem',
+                    marginTop: '20px',
+                    animation: 'pulse 1s infinite'
+                  }}>
+                    🎊 JACKPOT! 🎊
+                  </div>
+                )}
               </>
             ) : (
               <>

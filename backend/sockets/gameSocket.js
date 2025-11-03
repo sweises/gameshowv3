@@ -557,11 +557,14 @@ function setupGameSocket(io, db) {
 
                 callback({ success: true, selectedPlayer });
 
-                io.to(socket.roomCode).emit('player-selected', {
-                    player: selectedPlayer
-                });
+                // WICHTIG: Warte 6 Sekunden bevor Ergebnis gesendet wird
+                setTimeout(() => {
+                    io.to(socket.roomCode).emit('player-selected', {
+                        player: selectedPlayer
+                    });
+                    console.log(`🎯 Spieler ausgewählt: ${selectedPlayer.name}`);
+                }, 6000);
 
-                console.log(`🎯 Spieler ausgewählt: ${selectedPlayer.name}`);
             } catch (error) {
                 console.error('Fehler beim Spieler-Rad:', error);
                 callback({ success: false, error: error.message });
@@ -650,11 +653,14 @@ function setupGameSocket(io, db) {
 
                 callback({ success: true, result });
 
-                io.to(socket.roomCode).emit('reward-result', {
-                    result
-                });
+                // WICHTIG: Warte 6 Sekunden bevor Ergebnis gesendet wird
+                setTimeout(() => {
+                    io.to(socket.roomCode).emit('reward-result', {
+                        result
+                    });
+                    console.log(`🎰 Ergebnis: ${result.type === 'punishment' ? result.text : `+${result.points} Punkte`}`);
+                }, 6000);
 
-                console.log(`🎰 Ergebnis: ${result.type === 'punishment' ? result.text : `+${result.points} Punkte`}`);
             } catch (error) {
                 console.error('Fehler beim Reward-Rad:', error);
                 callback({ success: false, error: error.message });
