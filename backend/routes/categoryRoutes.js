@@ -58,8 +58,8 @@ module.exports = (db) => {
 
                 for (const template of templates.rows) {
                     await db.query(
-                        'INSERT INTO questions (game_id, category_id, question_text, question_order) VALUES ($1, $2, $3, $4)',
-                        [gameId, categoryId, template.question_text, questionOrder]
+                        'INSERT INTO questions (game_id, category_id, question_text, question_order, image_url) VALUES ($1, $2, $3, $4, $5)',
+                        [gameId, categoryId, template.question_text, questionOrder, template.image_url]
                     );
                     questionOrder++;
                 }

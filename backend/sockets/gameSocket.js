@@ -160,15 +160,16 @@ function setupGameSocket(io, db) {
                     console.log('⚠️  Keine Fragen gefunden - kopiere von Templates...');
                     
                     await db.query(
-                        `INSERT INTO questions (game_id, category_id, question_text, question_order)
+                        `INSERT INTO questions (game_id, category_id, question_text, question_order, image_url)
                          SELECT $1, category_id, question_text, 
-                                ROW_NUMBER() OVER (ORDER BY id) - 1
+                                ROW_NUMBER() OVER (ORDER BY id) - 1,
+                                image_url
                          FROM question_templates 
                          WHERE category_id = $2`,
                         [socket.gameId, category.id]
                     );
                     
-                    console.log('✅ Fragen von Templates kopiert');
+                    console.log('✅ Fragen von Templates kopiert (inkl. Bilder)');
                 }
 
                 const questionResult = await db.query(
@@ -188,7 +189,8 @@ function setupGameSocket(io, db) {
                     question: {
                         id: question.id,
                         text: question.question_text,
-                        order: question.question_order
+                        order: question.question_order,
+                        image_url: question.image_url  // ← NEU!
                     },
                     category: {
                         id: category.id,
@@ -507,9 +509,13 @@ function setupGameSocket(io, db) {
                     return callback({ success: false, error: 'Nur Host kann weiter' });
                 }
 
-                // 20% Chance auf Glücksrad
+                // ============================================
+                // 🎰 GLÜCKSRAD WAHRSCHEINLICHKEIT
+                // ============================================
+                // Ändere den Wert hier um die Wahrscheinlichkeit anzupassen:
+                // 0.05 = 5%, 0.1 = 10%, 0.2 = 20%, 0.5 = 50%, 1.0 = 100%
                 const wheelChance = Math.random();
-                const triggerWheel = wheelChance < 0.2;
+                const triggerWheel = wheelChance < 0.2;  // ← HIER ÄNDERN!
 
                 console.log(`🎲 Würfel: ${(wheelChance * 100).toFixed(1)}% - Glücksrad: ${triggerWheel ? 'JA 🎰' : 'NEIN'}`);
 
@@ -868,7 +874,8 @@ async function proceedToNextQuestion(socket, callback, io, db) {
         question: {
             id: question.id,
             text: question.question_text,
-            order: question.question_order
+            order: question.question_order,
+            image_url: question.image_url  // ← NEU!
         },
         category: {
             id: currentCategory.id,
