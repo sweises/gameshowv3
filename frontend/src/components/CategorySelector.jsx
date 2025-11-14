@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_URL from '../config/api'; // ← NEU!
 
 // Emoji Mapping (weil DB keine Emojis speichern kann)
 const ICON_MAP = {
@@ -25,7 +26,7 @@ function CategorySelector({ gameId, onComplete }) {
   const fetchCategories = async () => {
     try {
       console.log('🔍 Versuche Kategorien zu laden...');
-      const response = await fetch('http://localhost:3001/api/categories');
+      const response = await fetch(`${API_URL}/categories`);
       console.log('📡 Response Status:', response.status);
       
       const data = await response.json();
@@ -78,7 +79,7 @@ function CategorySelector({ gameId, onComplete }) {
     }
 
     try {
-      const response = await fetch(`http://localhost:3001/api/games/${gameId}/categories`, {
+      const response = await fetch(`${API_URL}/games/${gameId}/categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,17 +1,17 @@
 import { io } from 'socket.io-client';
 
-// WICHTIG: Ändere die URL später für dein lokales Netzwerk
-// Für jetzt nutzen wir localhost
-const SOCKET_URL = 'http://localhost:3001';
+// Dynamische Server-URL aus Environment Variable
+const SOCKET_URL = process.env.REACT_APP_SERVER_URL || 'http://localhost:3001';
+
+console.log('🌐 Verbinde zu Server:', SOCKET_URL);
 
 const socket = io(SOCKET_URL, {
-    autoConnect: false, // Wir verbinden manuell
+    autoConnect: false,
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
 });
 
-// Debug-Logs
 socket.on('connect', () => {
     console.log('✅ Mit Server verbunden!', socket.id);
 });

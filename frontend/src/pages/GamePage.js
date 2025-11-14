@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../sockets';
-import WheelOfFortune from '../components/WheelOfFortune'; // NEU!
-
+import WheelOfFortune from '../components/WheelOfFortune';
+import API_URL from '../config/api'; // ← NEU!
 // Emoji Mapping
 const ICON_MAP = {
   'brain': '🧠',
@@ -69,7 +69,7 @@ function GamePage() {
 
     const loadPlayers = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/games/${gameId}/players`);
+const response = await fetch(`${API_URL}/games/${gameId}/players`);
         const data = await response.json();
         if (data.success) {
           setPlayers(data.players);

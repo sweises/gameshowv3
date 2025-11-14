@@ -239,8 +239,7 @@ function WheelOfFortune({
       <div className="wheel-overlay">
         <div className="wheel-container">
           <div className="wheel-header">
-            <h1>🎰 DREH DAS RAD DES SCHICKSALS!</h1>
-            <p>{selectedPlayer.name} - Viel Glück!</p>
+            <h1>🎰 Versuch dein Glück, {selectedPlayer.name}</h1>
           </div>
 
           <div className="reward-wheel">
@@ -369,14 +368,8 @@ function WheelOfFortune({
               </>
             ) : (
               <>
-                <div className="result-icon punishment-icon">{rewardResult.icon}</div>
+                <h2 className="result-text punishment-text">{selectedPlayer.name} wird bestraft:</h2>
                 <h2 className="result-text punishment-text">{rewardResult.text}</h2>
-                <p className="result-player">
-                  {selectedPlayer.name} muss für {rewardResult.duration} Frage{rewardResult.duration !== 1 ? 'n' : ''}:
-                </p>
-                <div className="punishment-badge">
-                  {rewardResult.text}
-                </div>
               </>
             )}
           </div>
