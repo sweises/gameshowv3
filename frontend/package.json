@@ -17,10 +17,17 @@
   },
   
   "scripts": {
-    "start": "set HOST=0.0.0.0&& react-scripts start",
+    "start": "set HOST=0.0.0.0&& react-scripts start&& node start-local-network.js",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "start:backend": "node start-local-network.js backend",
+    "start:frontend": "node start-local-network.js frontend",
+    "setup": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ..",
+    "setup-pi": "node setup-raspberry-pi.js",
+    "export-db": "node export-database.js seed",
+    "export-db:full": "node export-database.js full",
+    "ip": "node get-local-ip.js"
   },
   "eslintConfig": {
     "extends": [
@@ -38,6 +45,13 @@
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
-    ]
-  }
+    ],
+  "name": "quiz-buzzer-app",
+  "version": "1.0.0",
+  "description": "Real-time Quiz Buzzer Application für lokales Netzwerk",
+  
+  "keywords": ["quiz", "buzzer", "multiplayer", "local-network", "raspberry-pi"],
+  "author": "",
+  "license": "ISC"
+}
 }

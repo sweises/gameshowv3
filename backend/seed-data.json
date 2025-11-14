@@ -1,0 +1,580 @@
+{
+  "exportedAt": "2025-11-14T22:29:01.880Z",
+  "mode": "seed",
+  "version": "1.0.0",
+  "categories": [
+    {
+      "id": 1,
+      "name": "Tutorial: Buzzer",
+      "description": "Lerne wie der Buzzer funktioniert! Der Schnellste gewinnt!",
+      "icon": "book",
+      "created_at": "2025-10-31T12:34:08.358Z",
+      "category_type": "buzzer"
+    },
+    {
+      "id": 2,
+      "name": "Tutorial: Text-Eingabe",
+      "description": "Schreibe deine Antwort! Mehrere können richtig sein!",
+      "icon": "book",
+      "created_at": "2025-10-31T12:34:08.418Z",
+      "category_type": "text_input"
+    },
+    {
+      "id": 3,
+      "name": "Die leichten 5+5+5",
+      "description": "Wir spielen 5 leichte Fragen, und weil es so toll ist, drei Mal!\nIch stelle leichte Fragen, jeder gibt seine Antwort im Textfeld ab. Wer richtig liegt, kriegt einen Punkt. ",
+      "icon": "brain",
+      "created_at": "2025-11-03T12:13:35.712Z",
+      "category_type": "text_input"
+    },
+    {
+      "id": 4,
+      "name": "Ich bin...",
+      "description": "Ich sage Sätze in der \"Ich bin...\" Form. Wenn ihr erkennt wer ich bin, buzzert ihr. Wer gebuzzert hat muss Antworten, falls die Antwort richtig ist, gibt es einen Punkt. Wenn nicht, geht es weiter mit dem nächsten Satz.",
+      "icon": "globe",
+      "created_at": "2025-11-03T12:13:35.712Z",
+      "category_type": "buzzer"
+    },
+    {
+      "id": 5,
+      "name": "Ich präzisier mir einen",
+      "description": "Ich stelle eine Frage, ihr gebt eure Antwort im Textfeld ab. Die präziseste Antwort gewinnt. Beispiel: Wo wohnt Sherlock Holmes? \"1. Stock, 221B Baker Street, London, Großbritannien\" kriegt einen Punkt, \"London\" nicht.",
+      "icon": "science",
+      "created_at": "2025-11-03T12:13:35.712Z",
+      "category_type": "text_input"
+    },
+    {
+      "id": 6,
+      "name": "Ich wette, ich kann mehr",
+      "description": "Ich gebe eine Kategorie vor, jeder schreibt ins Feld, wieviele Dinge diese Kategorie er nennen kann. Die Person mit der höchsten Zahl, muss diese Anzahl an Dingen nennen",
+      "icon": "scroll",
+      "created_at": "2025-11-03T12:13:35.712Z",
+      "category_type": "text_input"
+    },
+    {
+      "id": 7,
+      "name": "Das kennt man!",
+      "description": "Ich spiele ein Lied ab, die Person die es als erstes erkennt, bekommt einen Punkt",
+      "icon": "music",
+      "created_at": "2025-11-03T12:13:35.712Z",
+      "category_type": "buzzer"
+    },
+    {
+      "id": 8,
+      "name": "Wo bin ich?",
+      "description": "Ihr seht Bilder von verschiedenen Städten. Wer die Stadt richtig benennt, kriegt einen Punkt",
+      "icon": "globe",
+      "created_at": "2025-11-03T14:07:37.271Z",
+      "category_type": "text_input"
+    },
+    {
+      "id": 9,
+      "name": "Sortier mich, Daddy",
+      "description": "Ich nenne euch 5 Dinge einer Kategorie, sortiert sie nach der vorgegebenen Eigenschaft",
+      "icon": "movie",
+      "created_at": "2025-11-03T14:51:41.828Z",
+      "category_type": "text_input"
+    }
+  ],
+  "questions": [
+    {
+      "id": 4,
+      "category_id": 1,
+      "question_text": "Wie viele Finger hat eine Hand?",
+      "created_at": "2025-10-31T13:07:29.887Z",
+      "image_url": null
+    },
+    {
+      "id": 5,
+      "category_id": 1,
+      "question_text": "In welcher Stadt steht der Eiffelturm?",
+      "created_at": "2025-10-31T13:07:29.887Z",
+      "image_url": null
+    },
+    {
+      "id": 6,
+      "category_id": 1,
+      "question_text": "Was ist 2 + 2?",
+      "created_at": "2025-10-31T13:07:29.887Z",
+      "image_url": null
+    },
+    {
+      "id": 7,
+      "category_id": 2,
+      "question_text": "Nenne eine Farbe",
+      "created_at": "2025-10-31T13:07:29.903Z",
+      "image_url": null
+    },
+    {
+      "id": 8,
+      "category_id": 2,
+      "question_text": "Nenne eine Zahl zwischen 1 und 10",
+      "created_at": "2025-10-31T13:07:29.903Z",
+      "image_url": null
+    },
+    {
+      "id": 9,
+      "category_id": 2,
+      "question_text": "Nenne ein Tier mit 4 Beinen",
+      "created_at": "2025-10-31T13:07:29.903Z",
+      "image_url": null
+    },
+    {
+      "id": 11,
+      "category_id": 3,
+      "question_text": "Wofür steht die Abkürzung HBF?",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 12,
+      "category_id": 3,
+      "question_text": "Wie heißt der derzeitige deutsche Finanzminister und Vizekanzler?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 13,
+      "category_id": 3,
+      "question_text": "Wie schreibt man ...",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 14,
+      "category_id": 3,
+      "question_text": "Wofür steht dieses Verkehrszeichen?",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": "https://www.bussgeldkatalog.org/wp-content/uploads/rechts-vor-links-strassenschild.png"
+    },
+    {
+      "id": 15,
+      "category_id": 3,
+      "question_text": "Welches Element ist das zweite im Periodensystem?",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 16,
+      "category_id": 3,
+      "question_text": "Welche Insel ist die größte der Welt?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 17,
+      "category_id": 3,
+      "question_text": "Was ist die Hauptstadt von Thailand?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 18,
+      "category_id": 3,
+      "question_text": "Wie nennt man das heilige Buch der Juden?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 19,
+      "category_id": 3,
+      "question_text": "Wie lange ist eine Hälfte der Verlängerung beim Fußball?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 20,
+      "category_id": 3,
+      "question_text": "In welchem Land finden die Olympischen Winterspiele 2026 statt?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 21,
+      "category_id": 3,
+      "question_text": "Nenne zwei der vier Bremer Stadtmusikanten?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 22,
+      "category_id": 3,
+      "question_text": "Was ist das höchste Gebäude in Hamburg?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 23,
+      "category_id": 3,
+      "question_text": "Was ist die Urethra?",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 24,
+      "category_id": 3,
+      "question_text": "Mit welcher Währung bezahlt man in der Türkei?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 25,
+      "category_id": 3,
+      "question_text": "Zwischen welchen Ländern liegt Andorra?\n",
+      "created_at": "2025-11-03T12:14:05.416Z",
+      "image_url": null
+    },
+    {
+      "id": 26,
+      "category_id": 4,
+      "question_text": "Promi 1",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 27,
+      "category_id": 4,
+      "question_text": "Promi 2",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 28,
+      "category_id": 4,
+      "question_text": "Promi 3",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 29,
+      "category_id": 4,
+      "question_text": "Promi 4",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 30,
+      "category_id": 4,
+      "question_text": "Promi 5",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 31,
+      "category_id": 5,
+      "question_text": "Wo ist der Amtssitz des deutschen Bundespräsidenten?\n",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 32,
+      "category_id": 5,
+      "question_text": "Wie hieß die Vorgängerin von King Charles?\n",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 33,
+      "category_id": 5,
+      "question_text": "Wann begann der Zweite Weltkrieg (in Europa)?\n",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 34,
+      "category_id": 5,
+      "question_text": "Wo hängt die \"Mona Lisa\"?\n",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 35,
+      "category_id": 5,
+      "question_text": "Wie hoch ist die Zugspitze?\n",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 36,
+      "category_id": 5,
+      "question_text": "Wo ist der Big Ben?\n",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 37,
+      "category_id": 5,
+      "question_text": "Wie heißt der derzeitige Kapitän der deutschen Fußball Nationalmannschaft?\n",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 38,
+      "category_id": 5,
+      "question_text": "Wann fiel die Berliner Mauer?\n",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 39,
+      "category_id": 6,
+      "question_text": "Fast-Food Ketten",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 40,
+      "category_id": 6,
+      "question_text": "Hauptstädte",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 41,
+      "category_id": 6,
+      "question_text": "Deutsche Reality Stars",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 42,
+      "category_id": 6,
+      "question_text": "Olympische Sportarten",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 43,
+      "category_id": 6,
+      "question_text": "Gewürze",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 44,
+      "category_id": 6,
+      "question_text": "Tiere mit 5 Buchstaben",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 45,
+      "category_id": 7,
+      "question_text": "Lied 1",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 46,
+      "category_id": 7,
+      "question_text": "Lied 2",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 47,
+      "category_id": 7,
+      "question_text": "Lied 3",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 48,
+      "category_id": 7,
+      "question_text": "Lied 4",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 49,
+      "category_id": 7,
+      "question_text": "Lied 5",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 50,
+      "category_id": 7,
+      "question_text": "Lied 6",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 51,
+      "category_id": 7,
+      "question_text": "Lied 7",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 52,
+      "category_id": 7,
+      "question_text": "Lied 8",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 53,
+      "category_id": 7,
+      "question_text": "Lied 9",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 54,
+      "category_id": 7,
+      "question_text": "Lied 10",
+      "created_at": "2025-11-03T12:50:27.650Z",
+      "image_url": null
+    },
+    {
+      "id": 55,
+      "category_id": 8,
+      "question_text": "Welche Stadt ist das?",
+      "created_at": "2025-11-03T14:16:46.798Z",
+      "image_url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/3000/3678/aster_newyorkcity.jpg"
+    },
+    {
+      "id": 56,
+      "category_id": 8,
+      "question_text": "Welche Stadt ist das?",
+      "created_at": "2025-11-03T14:16:46.798Z",
+      "image_url": "https://www.berlin.de/binaries/asset/image_assets/8359893/source/1730978676/1000x500/"
+    },
+    {
+      "id": 57,
+      "category_id": 8,
+      "question_text": "Welcher Ort ist das?",
+      "created_at": "2025-11-03T14:16:46.798Z",
+      "image_url": "https://image.geo.de/30140612/t/oX/v3/w1440/r1.5/-/gibraltar-f-195211339-jpg--80020-.jpg"
+    },
+    {
+      "id": 58,
+      "category_id": 8,
+      "question_text": "Welche Stadt ist das?",
+      "created_at": "2025-11-03T14:16:46.798Z",
+      "image_url": "https://cdn0.scrvt.com/airportdtm/497b403ea301e76a/14cc6eed9f96/budapest-sonnenuntergang-dortmund-airport.jpg"
+    },
+    {
+      "id": 59,
+      "category_id": 8,
+      "question_text": "Welche Stadt ist das?",
+      "created_at": "2025-11-03T14:16:46.798Z",
+      "image_url": "https://www.robertharding.com/watermark.php?type=preview&im=RM/RH/HORIZONTAL/1348-3087"
+    },
+    {
+      "id": 60,
+      "category_id": 8,
+      "question_text": "Welche Stadt ist das?",
+      "created_at": "2025-11-03T14:16:46.798Z",
+      "image_url": "https://www.ab-in-den-urlaub.de/magazin/wp-content/uploads/2019/10/1570610197_Luftaufnahme-Kapstadt.jpg"
+    },
+    {
+      "id": 62,
+      "category_id": 9,
+      "question_text": "Sortiere absteigend nach Einwohnern:\nLübeck, Kiel, Köln, München, Stuttgart",
+      "created_at": "2025-11-03T14:51:47.161Z",
+      "image_url": null
+    },
+    {
+      "id": 63,
+      "category_id": 9,
+      "question_text": "Sortiere nach Fläche absteigend:\nÖsterreich, Niederlande, Schweiz, Belgien, Dänemark",
+      "created_at": "2025-11-03T14:51:47.161Z",
+      "image_url": null
+    },
+    {
+      "id": 64,
+      "category_id": 9,
+      "question_text": "Sortiere nach Entfernung von Hamburg absteigend:\nParis, Rom, Castrop Rauxel, Tokio, London",
+      "created_at": "2025-11-03T14:51:47.161Z",
+      "image_url": null
+    },
+    {
+      "id": 65,
+      "category_id": 9,
+      "question_text": "Sortiere chronologisch beginnend mit dem frühestens:\nGhazal & Puya kommen zusammen, 1. Spieleabend,  Steffens Ausbildungsbeginn, Nele & Steffen ziehen aus, NSGP fahren nach München",
+      "created_at": "2025-11-03T14:51:47.161Z",
+      "image_url": null
+    },
+    {
+      "id": 66,
+      "category_id": 9,
+      "question_text": "Sortiere nach Alter:\nNoah, Ghazal, Olivia Rodrigo, Lamine Yamal, Nina Chuba",
+      "created_at": "2025-11-03T14:51:47.161Z",
+      "image_url": null
+    }
+  ],
+  "punishments": [
+    {
+      "id": 1,
+      "text": "50g Butter essen",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    },
+    {
+      "id": 2,
+      "text": "Fahrradhelm für 60min tragen",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    },
+    {
+      "id": 3,
+      "text": "Einäugig für eine Stunde",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    },
+    {
+      "id": 4,
+      "text": "Ekel-Shot trinken",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    },
+    {
+      "id": 5,
+      "text": "Sitz- und Liegeverbot für 45 Minuten",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    },
+    {
+      "id": 6,
+      "text": "4 Personen dürfen je eine Gliedmaße bemalen",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    },
+    {
+      "id": 7,
+      "text": "Drinnen-Verbot, die nächsten 3 Fragen von draußen",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    },
+    {
+      "id": 8,
+      "text": "Es wird warm!",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    },
+    {
+      "id": 9,
+      "text": "Trink- & Rauchverbot für 30 Minuten",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    },
+    {
+      "id": 10,
+      "text": "Der größte Fan!",
+      "duration_questions": 0,
+      "icon": "??",
+      "created_at": "2025-11-03T12:59:46.482Z"
+    }
+  ]
+}

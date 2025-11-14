@@ -1,0 +1,21 @@
+{
+  "name": "quiz-buzzer-app",
+  "version": "1.0.0",
+  "description": "Real-time Quiz Buzzer Application für lokales Netzwerk",
+  "scripts": {
+    "start": "node start-local-network.js",
+    "start:backend": "node start-local-network.js backend",
+    "start:frontend": "node start-local-network.js frontend",
+    "setup": "npm install && cd backend && npm install && cd ../frontend && npm install && cd ..",
+    "setup-pi": "node setup-raspberry-pi.js",
+    "export-db": "node export-database.js",
+    "ip": "node get-local-ip.js"
+  },
+  "dependencies": {
+    "pg": "^8.16.3",
+    "dotenv": "^17.2.3"
+  },
+  "keywords": ["quiz", "buzzer", "multiplayer", "local-network", "raspberry-pi"],
+  "author": "",
+  "license": "ISC"
+}
