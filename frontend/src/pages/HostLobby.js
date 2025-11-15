@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../sockets';
 import CategorySelector from '../components/CategorySelector';
+import { saveSession } from '../utils/sessionStorage';
 
 function HostLobby() {
   const navigate = useNavigate();
@@ -41,6 +42,14 @@ function HostLobby() {
         setRoomCode(response.roomCode);
         setGameId(response.gameId);
         setShowCategorySelector(true);
+        saveSession({
+      sessionId: 'host_' + response.gameId, // Host braucht keine echte Session-ID
+      playerId: null,
+      gameId: response.gameId,
+      roomCode: response.roomCode,
+      playerName: hostName,
+      isHost: true
+    });
       } else {
         setError(response.error || 'Fehler beim Erstellen des Raums');
       }

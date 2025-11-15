@@ -1,12 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCodeDisplay from '../components/QRCodeDisplay';
+import RejoinDialog from '../components/RejoinDialog';
 
 function HomePage() {
   const navigate = useNavigate();
 
   return (
     <div className="page">
+            <RejoinDialog /> {/* ← NEU */}
       <div className="card">
         <h1>🎯 Quiz Buzzer</h1>
         <p>Willkommen zur ultimativen Quiz-Show!</p>

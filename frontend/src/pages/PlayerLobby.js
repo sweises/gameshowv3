@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { saveSession } from '../utils/sessionStorage';
 import socket from '../sockets';
 
 function PlayerLobby() {
@@ -70,19 +71,29 @@ function PlayerLobby() {
 
     setIsJoining(true);
     setError('');
-
-    socket.emit('join-room', { 
-      roomCode: roomCode.toUpperCase(), 
-      playerName 
-    }, (response) => {
-      setIsJoining(false);
-      if (response.success) {
-        setHasJoined(true);
-        setPlayerId(response.playerId);
-        setGameId(response.gameId);
-      } else {
-        setError(response.error || 'Fehler beim Beitreten');
-      }
+socket.emit('join-room', { 
+  roomCode: roomCode.toUpperCase(), 
+  playerName 
+}, (response) => {
+  setIsJoining(false);
+  if (response.success) {
+    setHasJoined(true);
+    setPlayerId(response.playerId);
+    setGameId(response.gameId);
+    
+    // NEU: Session speichern
+    saveSession({
+      sessionId: response.sessionId,
+      playerId: response.playerId,
+      gameId: response.gameId,
+      roomCode: roomCode.toUpperCase(),
+      playerName: playerName,
+      isHost: false
+    });
+    
+  } else {
+    setError(response.error || 'Fehler beim Beitreten');
+  }
     });
   };
 

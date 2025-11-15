@@ -1,3 +1,4 @@
+const { generateSessionId, getPlayerBySession, getGameStateForRejoin, updatePlayerConnection } = require('../utils/Sessionutils');
 function setupGameSocket(io, db) {
     io.on('connection', (socket) => {
         console.log('✅ Neuer Client verbunden:', socket.id);
@@ -26,12 +27,98 @@ function setupGameSocket(io, db) {
                 callback({ success: false, error: error.message });
             }
         });
+// NEU: Event zum Wiederverbinden mit existierender Session
+socket.on('rejoin-game', async (data, callback) => {
+    try {
+        const { sessionId } = data;
 
+        // Suche Spieler anhand Session-ID
+        const player = await getPlayerBySession(db, sessionId);
+        
+        if (!player) {
+            return callback({ 
+                success: false, 
+                error: 'Session nicht gefunden oder abgelaufen' 
+            });
+        }
+
+        // Prüfe ob Spiel noch läuft
+        const gameResult = await db.query(
+            'SELECT * FROM games WHERE id = $1',
+            [player.game_id]
+        );
+
+        if (gameResult.rows.length === 0) {
+            return callback({ 
+                success: false, 
+                error: 'Spiel nicht mehr verfügbar' 
+            });
+        }
+
+        const game = gameResult.rows[0];
+
+        // Aktualisiere Socket-ID
+        await updatePlayerConnection(db, player.id, socket.id);
+
+        // Socket-Variablen setzen
+        socket.join(game.room_code);
+        socket.gameId = game.id;
+        socket.playerId = player.id;
+        socket.roomCode = game.room_code;
+
+        // Hole vollständigen Game-State
+        const gameState = await getGameStateForRejoin(db, game.id);
+
+        if (!gameState) {
+            return callback({ 
+                success: false, 
+                error: 'Konnte Spielstand nicht laden' 
+            });
+        }
+
+        callback({ 
+            success: true, 
+            playerId: player.id,
+            gameId: game.id,
+            roomCode: game.room_code,
+            gameState: {
+                status: game.status,
+                category: gameState.category ? {
+                    id: gameState.category.id,
+                    name: gameState.category.name,
+                    icon: gameState.category.icon,
+                    description: gameState.category.description,
+                    type: gameState.category.category_type || 'buzzer'
+                } : null,
+                question: gameState.question ? {
+                    id: gameState.question.id,
+                    text: gameState.question.question_text,
+                    order: gameState.question.question_order,
+                    image_url: gameState.question.image_url
+                } : null,
+                players: gameState.players,
+                buzzerLocked: gameState.buzzerLocked,
+                buzzerPlayer: gameState.buzzerPlayer
+            }
+        });
+
+        // Informiere andere Spieler über Rejoin
+        io.to(game.room_code).emit('player-rejoined', {
+            playerId: player.id,
+            playerName: player.name
+        });
+
+        console.log(`🔄 ${player.name} ist wieder verbunden mit Raum ${game.room_code}`);
+    } catch (error) {
+        console.error('Fehler beim Rejoin:', error);
+        callback({ success: false, error: error.message });
+    }
+});
         // Event: Raum beitreten (Spieler)
         socket.on('join-room', async (data, callback) => {
             try {
                 const { roomCode, playerName } = data;
-
+                const sessionId = generateSessionId();
                 const gameResult = await db.query(
                     'SELECT * FROM games WHERE room_code = $1',
                     [roomCode]
@@ -47,10 +134,10 @@ function setupGameSocket(io, db) {
                     return callback({ success: false, error: 'Spiel läuft bereits' });
                 }
 
-                const playerResult = await db.query(
-                    'INSERT INTO players (game_id, name, socket_id) VALUES ($1, $2, $3) RETURNING *',
-                    [game.id, playerName, socket.id]
-                );
+            const playerResult = await db.query(
+    'INSERT INTO players (game_id, name, socket_id, session_id) VALUES ($1, $2, $3, $4) RETURNING *',
+    [game.id, playerName, socket.id, sessionId]
+);
 
                 const player = playerResult.rows[0];
                 socket.join(roomCode);
@@ -67,7 +154,7 @@ function setupGameSocket(io, db) {
                     players: playersResult.rows
                 });
 
-                callback({ success: true, playerId: player.id, gameId: game.id });
+                callback({ success: true, playerId: player.id, gameId: game.id, sessionId: sessionId });
                 console.log(`👤 ${playerName} ist Raum ${roomCode} beigetreten`);
             } catch (error) {
                 console.error('Fehler beim Beitreten:', error);
@@ -746,28 +833,21 @@ function setupGameSocket(io, db) {
             }
         });
 
-        // Disconnect Handler
-        socket.on('disconnect', () => {
+       // Disconnect Handler - NICHT mehr löschen, nur markieren
+          socket.on('disconnect', () => {
             console.log('❌ Client getrennt:', socket.id);
-            
             if (socket.playerId) {
-                db.query('DELETE FROM players WHERE socket_id = $1', [socket.id]);
-                
-                if (socket.roomCode) {
-                    db.query(
-                        'SELECT id, name, score FROM players WHERE game_id = $1',
-                        [socket.gameId]
-                    ).then(result => {
-                        io.to(socket.roomCode).emit('players-update', {
-                            players: result.rows
-                        });
-                    });
-                }
+                db.query(
+                    'UPDATE players SET disconnect_at = CURRENT_TIMESTAMP WHERE id = $1',
+                    [socket.playerId]
+                ).then(() => {
+                    console.log(`⏸️  Spieler ${socket.playerId} disconnect markiert (kann rejoinen)`);
+                });
             }
         });
-    });
-}
 
+    });
+};
 // Hilfsfunktion: Zur nächsten Frage übergehen
 async function proceedToNextQuestion(socket, callback, io, db) {
     await db.query(
@@ -895,6 +975,6 @@ function generateRoomCode() {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
-}
-
+    }
+    
 module.exports = setupGameSocket;

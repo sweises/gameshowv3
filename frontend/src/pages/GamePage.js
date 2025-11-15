@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import socket from '../sockets';
 import WheelOfFortune from '../components/WheelOfFortune';
 import API_URL from '../config/api'; // ← NEU!
+import { loadSession, updateSession, clearSession } from '../utils/sessionStorage';
 // Emoji Mapping
 const ICON_MAP = {
   'brain': '🧠',
@@ -69,7 +70,7 @@ function GamePage() {
 
     const loadPlayers = async () => {
       try {
-const response = await fetch(`${API_URL}/games/${gameId}/players`);
+    const response = await fetch(`${API_URL}/games/${gameId}/players`);
         const data = await response.json();
         if (data.success) {
           setPlayers(data.players);
@@ -187,8 +188,30 @@ const response = await fetch(`${API_URL}/games/${gameId}/players`);
       if (data.players.length > 0) {
         setWinner(data.players[0]);
       }
+    }); // <-- HIER: game-finished Callback korrekt schließen
+
+    // Disconnect Handler (global innerhalb useEffect)
+    socket.on('disconnect', () => {
+      console.log('⚠️  Socket getrennt - versuche Reconnect...');
     });
 
+    // NEU: Connect Handler mit Auto-Rejoin (ebenfalls global in useEffect)
+    socket.on('connect', () => {
+      console.log('🔄 Socket verbunden - prüfe Session...');
+
+      const session = loadSession();
+      if (session && !isHost && session.gameId === gameId) {
+        socket.emit('rejoin-game', { sessionId: session.sessionId }, (response) => {
+          if (response.success) {
+            console.log('✅ Auto-Rejoin erfolgreich!');
+          } else {
+            console.log('❌ Auto-Rejoin fehlgeschlagen:', response.error);
+          }
+        });
+      }
+    });
+
+    // Cleanup Function - AUßERHALB aller Event-Handler (am Ende von useEffect)
     return () => {
       socket.off('category-intro');
       socket.off('category-started');
@@ -201,9 +224,10 @@ const response = await fetch(`${API_URL}/games/${gameId}/players`);
       socket.off('scores-update');
       socket.off('wheel-triggered');
       socket.off('game-finished');
+      socket.off('disconnect');
+      socket.off('connect');
     };
   }, [roomCode, navigate, isHost, gameId, question]);
-
   const resetQuestionState = () => {
     setBuzzerPlayer(null);
     setBuzzerPlayerId(null);
@@ -447,6 +471,7 @@ const response = await fetch(`${API_URL}/games/${gameId}/players`);
 
   // Game Finished Screen
   if (gameFinished) {
+      clearSession();
     return (
       <div className="page">
         <div className="card" style={{ maxWidth: '700px' }}>
