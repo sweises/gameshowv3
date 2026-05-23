@@ -42,14 +42,14 @@ function HostLobby() {
         setRoomCode(response.roomCode);
         setGameId(response.gameId);
         setShowCategorySelector(true);
-        saveSession({
-      sessionId: 'host_' + response.gameId, // Host braucht keine echte Session-ID
-      playerId: null,
-      gameId: response.gameId,
-      roomCode: response.roomCode,
-      playerName: hostName,
-      isHost: true
-    });
+      saveSession({
+          sessionId: response.hostSessionId, // echte Host-Session vom Server
+          playerId: null,
+          gameId: response.gameId,
+          roomCode: response.roomCode,
+          playerName: hostName,
+          isHost: true
+        });
       } else {
         setError(response.error || 'Fehler beim Erstellen des Raums');
       }

@@ -62,6 +62,9 @@ function GamePage() {
   const [selectedWheelPlayer, setSelectedWheelPlayer] = useState(null);
   const [wheelResult, setWheelResult] = useState(null);
 
+  // Verbindungsstatus: null | 'lost' | 'reconnecting' | 'restored'
+  const [connectionStatus, setConnectionStatus] = useState(null);
+
   useEffect(() => {
     if (!roomCode) {
       navigate('/');
@@ -190,22 +193,48 @@ function GamePage() {
       }
     }); // <-- HIER: game-finished Callback korrekt schließen
 
-    // Disconnect Handler (global innerhalb useEffect)
+    // Disconnect Handler
     socket.on('disconnect', () => {
       console.log('⚠️  Socket getrennt - versuche Reconnect...');
+      setConnectionStatus('lost');
     });
 
-    // NEU: Connect Handler mit Auto-Rejoin (ebenfalls global in useEffect)
+    socket.on('reconnect_attempt', () => {
+      setConnectionStatus('reconnecting');
+    });
+
+    // Connect Handler mit Auto-Rejoin
     socket.on('connect', () => {
       console.log('🔄 Socket verbunden - prüfe Session...');
 
       const session = loadSession();
-      if (session && !isHost && session.gameId === gameId) {
+
+      // Keine passende Session zu diesem Spiel -> nur Banner zurücksetzen
+      if (!session || session.gameId !== gameId) {
+        setConnectionStatus(null);
+        return;
+      }
+
+      if (isHost) {
+        socket.emit('rejoin-host', { hostSessionId: session.sessionId }, (response) => {
+          if (response.success) {
+            console.log('✅ Host Auto-Rejoin erfolgreich!');
+            setConnectionStatus('restored');
+            setTimeout(() => setConnectionStatus(null), 2500);
+          } else {
+            console.log('❌ Host Auto-Rejoin fehlgeschlagen:', response.error);
+            setConnectionStatus(null);
+          }
+        });
+      } else {
         socket.emit('rejoin-game', { sessionId: session.sessionId }, (response) => {
           if (response.success) {
             console.log('✅ Auto-Rejoin erfolgreich!');
+            setConnectionStatus('restored');
+            setTimeout(() => setConnectionStatus(null), 2500);
           } else {
             console.log('❌ Auto-Rejoin fehlgeschlagen:', response.error);
+            setConnectionStatus(null);
           }
         });
       }
@@ -225,6 +254,7 @@ function GamePage() {
       socket.off('wheel-triggered');
       socket.off('game-finished');
       socket.off('disconnect');
+      socket.off('reconnect_attempt');
       socket.off('connect');
     };
   }, [roomCode, navigate, isHost, gameId, question]);
@@ -400,10 +430,32 @@ function GamePage() {
     setWheelResult(null);
   };
 
+  const connectionBanner = connectionStatus && (
+    <div style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0,
+      zIndex: 9999,
+      padding: '12px',
+      textAlign: 'center',
+      fontWeight: 'bold',
+      fontSize: '1rem',
+      color: 'white',
+      background: connectionStatus === 'restored'
+        ? 'linear-gradient(135deg, #11998e, #38ef7d)'
+        : 'linear-gradient(135deg, #eb3349, #f45c43)',
+      transition: 'background 0.3s ease'
+    }}>
+      {connectionStatus === 'lost' && '⚠️ Verbindung unterbrochen...'}
+      {connectionStatus === 'reconnecting' && '🔄 Verbindung wird wiederhergestellt...'}
+      {connectionStatus === 'restored' && '✅ Verbindung wiederhergestellt!'}
+    </div>
+  );
+
   // Kategorie Intro Screen
   if (showCategoryIntro && currentCategory) {
     return (
       <div className="page" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+        {connectionBanner}
         <div style={{ textAlign: 'center', color: 'white', maxWidth: '800px' }}>
           <div style={{ fontSize: '8rem', marginBottom: '30px', animation: 'pulse 2s infinite' }}>
             {ICON_MAP[currentCategory.icon] || '❓'}
@@ -474,6 +526,7 @@ function GamePage() {
       clearSession();
     return (
       <div className="page">
+        {connectionBanner}
         <div className="card" style={{ maxWidth: '700px' }}>
           <div className="winner-container">
             <div className="winner-trophy">🏆</div>
@@ -533,6 +586,7 @@ function GamePage() {
   // Main Game Screen
   return (
     <div className="page">
+      {connectionBanner}
       <div className="card" style={{ maxWidth: '1000px', width: '90%' }}>
         {/* Header */}
         <div style={{ 

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-Command psql -ErrorAction SilentlyContinue; \\(Get-Command pg_isready -ErrorAction SilentlyContinue\\).Source; where.exe psql 2>&1)"
+    ]
+  }
+}

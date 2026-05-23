@@ -24,17 +24,22 @@ function RejoinDialog() {
 
     socket.connect();
 
-    socket.emit('rejoin-game', { sessionId: session.sessionId }, (response) => {
+    // Host und Spieler nutzen unterschiedliche Rejoin-Events
+    const eventName = session.isHost ? 'rejoin-host' : 'rejoin-game';
+    const payload = session.isHost
+      ? { hostSessionId: session.sessionId }
+      : { sessionId: session.sessionId };
+
+    socket.emit(eventName, payload, (response) => {
       setIsRejoining(false);
 
       if (response.success) {
         console.log('✅ Erfolgreich wieder verbunden!', response);
 
-        // Navigiere zur GamePage mit vollständigem State
         navigate('/game', {
           state: {
             isHost: session.isHost,
-            playerId: response.playerId,
+            playerId: response.playerId,   // beim Host undefined – das ist ok
             gameId: response.gameId,
             roomCode: response.roomCode,
             currentQuestion: response.gameState.question,
@@ -48,7 +53,6 @@ function RejoinDialog() {
         });
       } else {
         setError(response.error || 'Wiederverbindung fehlgeschlagen');
-        // Lösche ungültige Session
         clearSession();
         setTimeout(() => {
           setSession(null);
@@ -56,7 +60,6 @@ function RejoinDialog() {
       }
     });
   };
-
   const handleStartNew = () => {
     clearSession();
     setSession(null);

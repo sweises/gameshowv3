@@ -4,14 +4,16 @@ function setupGameSocket(io, db) {
         console.log('✅ Neuer Client verbunden:', socket.id);
 
         // Event: Raum erstellen (Host)
+        // Event: Raum erstellen (Host)
         socket.on('create-room', async (data, callback) => {
             try {
                 const { hostName } = data;
                 const roomCode = generateRoomCode();
+                const hostSessionId = generateSessionId(); // NEU: echte Host-Session
 
                 const result = await db.query(
-                    'INSERT INTO games (room_code, host_name, status) VALUES ($1, $2, $3) RETURNING *',
-                    [roomCode, hostName, 'lobby']
+                    'INSERT INTO games (room_code, host_name, status, host_session_id) VALUES ($1, $2, $3, $4) RETURNING *',
+                    [roomCode, hostName, 'lobby', hostSessionId]
                 );
 
                 const game = result.rows[0];
@@ -20,7 +22,8 @@ function setupGameSocket(io, db) {
                 socket.roomCode = roomCode;
                 socket.isHost = true;
 
-                callback({ success: true, roomCode, gameId: game.id });
+                // NEU: hostSessionId ans Host-Gerät zurückgeben
+                callback({ success: true, roomCode, gameId: game.id, hostSessionId });
                 console.log(`🎮 Raum erstellt: ${roomCode} von ${hostName}`);
             } catch (error) {
                 console.error('Fehler beim Erstellen des Raums:', error);
@@ -114,6 +117,72 @@ socket.on('rejoin-game', async (data, callback) => {
         callback({ success: false, error: error.message });
     }
 });
+
+// NEU: Host-Wiederverbindung
+        socket.on('rejoin-host', async (data, callback) => {
+            try {
+                const { hostSessionId } = data;
+
+                if (!hostSessionId) {
+                    return callback({ success: false, error: 'Keine Host-Session angegeben' });
+                }
+
+                // Spiel anhand der Host-Session finden
+                const gameResult = await db.query(
+                    'SELECT * FROM games WHERE host_session_id = $1',
+                    [hostSessionId]
+                );
+
+                if (gameResult.rows.length === 0) {
+                    return callback({ success: false, error: 'Host-Session nicht gefunden oder Spiel beendet' });
+                }
+
+                const game = gameResult.rows[0];
+
+                // Kern des Fixes: Host-Status auf dem neuen Socket wiederherstellen
+                socket.join(game.room_code);
+                socket.gameId = game.id;
+                socket.roomCode = game.room_code;
+                socket.isHost = true;
+
+                // Vollständigen Spielstand laden (gleiche Funktion wie beim Spieler-Rejoin)
+                const gameState = await getGameStateForRejoin(db, game.id);
+
+                if (!gameState) {
+                    return callback({ success: false, error: 'Konnte Spielstand nicht laden' });
+                }
+
+                callback({
+                    success: true,
+                    gameId: game.id,
+                    roomCode: game.room_code,
+                    gameState: {
+                        status: game.status,
+                        category: gameState.category ? {
+                            id: gameState.category.id,
+                            name: gameState.category.name,
+                            icon: gameState.category.icon,
+                            description: gameState.category.description,
+                            type: gameState.category.category_type || 'buzzer'
+                        } : null,
+                        question: gameState.question ? {
+                            id: gameState.question.id,
+                            text: gameState.question.question_text,
+                            order: gameState.question.question_order,
+                            image_url: gameState.question.image_url
+                        } : null,
+                        players: gameState.players,
+                        buzzerLocked: gameState.buzzerLocked,
+                        buzzerPlayer: gameState.buzzerPlayer
+                    }
+                });
+
+                console.log(`🔄 Host ist wieder verbunden mit Raum ${game.room_code}`);
+            } catch (error) {
+                console.error('Fehler beim Host-Rejoin:', error);
+                callback({ success: false, error: error.message });
+            }
+        });
         // Event: Raum beitreten (Spieler)
         socket.on('join-room', async (data, callback) => {
             try {
@@ -299,6 +368,7 @@ socket.on('rejoin-game', async (data, callback) => {
         });
 
         // Event: BUZZER! 🔴 (nur für buzzer-Kategorien)
+        // Event: BUZZER! 🔴 (nur für buzzer-Kategorien)
         socket.on('buzz', async (callback) => {
             try {
                 const gameResult = await db.query(
@@ -308,7 +378,7 @@ socket.on('rejoin-game', async (data, callback) => {
 
                 const game = gameResult.rows[0];
 
-                if (game.status !== 'playing') {
+                if (!game || game.status !== 'playing') {
                     return callback({ success: false, error: 'Spiel läuft nicht' });
                 }
 
@@ -319,19 +389,22 @@ socket.on('rejoin-game', async (data, callback) => {
 
                 const question = questionResult.rows[0];
 
-                const buzzCheck = await db.query(
-                    'SELECT * FROM buzzes WHERE game_id = $1 AND question_id = $2',
-                    [socket.gameId, question.id]
-                );
-
-                if (buzzCheck.rows.length > 0) {
-                    return callback({ success: false, error: 'Jemand hat bereits gebuzzert' });
+                if (!question) {
+                    return callback({ success: false, error: 'Keine aktive Frage' });
                 }
 
-                await db.query(
-                    'INSERT INTO buzzes (game_id, question_id, player_id) VALUES ($1, $2, $3)',
-                    [socket.gameId, question.id, socket.playerId]
-                );
+                try {
+                    await db.query(
+                        'INSERT INTO buzzes (game_id, question_id, player_id) VALUES ($1, $2, $3)',
+                        [socket.gameId, question.id, socket.playerId]
+                    );
+                } catch (insertError) {
+                    if (insertError.code === '23505') {
+                        // UNIQUE-Verletzung = jemand war schneller
+                        return callback({ success: false, error: 'Jemand hat bereits gebuzzert' });
+                    }
+                    throw insertError; // andere Fehler normal weiterreichen
+                }
 
                 const playerResult = await db.query(
                     'SELECT * FROM players WHERE id = $1',
